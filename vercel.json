@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/aNote_App/$1" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}
