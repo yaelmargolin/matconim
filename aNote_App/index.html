@@ -1375,7 +1375,8 @@ function cleanImportTitle(title) {
 
 async function loadImportNotes() {
   if (importNotesCache) return importNotesCache;
-  const r = await fetch('./notes.json');
+  const fname = await fetch('./notes-recipes.json').then(r => r.ok ? './notes-recipes.json' : './notes.json');
+  const r = await fetch(fname);
   const d = await r.json();
   const notes = d.notes
     .filter(n => n.folder_id === NOTES_RECIPE_FOLDER)
