@@ -1,0 +1,6 @@
+.DS_Store
+.claude/
+aNote_App/notes.json
+aNote_App/.DS_Store
+aNote_App/aNote/
+*.md

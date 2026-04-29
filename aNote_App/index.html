@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2563eb" />
+<title>מתכונים ופתקים</title>
+<style>
+/* ══════════════════ SHARED TOKENS ══════════════════ */
+:root {
+  --bg:           #f0f7ff;
+  --card:         #ffffff;
+  --primary:      #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent:       #60a5fa;
+  --text:         #1e293b;
+  --muted:        #64748b;
+  --border:       #bfdbfe;
+  --done:         #a7c796;
+  --shadow:       0 4px 14px rgba(37,99,235,0.12);
+  --fs:           17px;
+  --bg-alt:       #dbeafe;
+  --panel:        #f8faff;
+  --line:         #bfdbfe;
+  --line-soft:    #dbeafe;
+  --ink-soft:     #64748b;
+  --ink-faint:    #94a3b8;
+  --selected:     #eff6ff;
+  --serif:        "Iowan Old Style","Charter",Georgia,"Frank Ruhl Libre","David",serif;
+  --sans:         "Assistant","Heebo",-apple-system,"Segoe UI",Arial,sans-serif;
+  --mono:         ui-monospace,"SF Mono",Menlo,monospace;
+}
+
+/* ══════════════════ BASE ══════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+input, textarea, select { font: inherit; color: inherit; }
+::selection { background: var(--accent); color: #fff; }
+
+/* ══════════════════ TAB BAR ══════════════════ */
+#tab-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 48px;
+  z-index: 200;
+  display: flex;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: 0 2px 12px rgba(37,99,235,0.28);
+}
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.72);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  letter-spacing: .01em;
+}
+.tab-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+.tab-btn.active {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  border-bottom: 3px solid #fff;
+}
+
+/* ══════════════════ SECTIONS ══════════════════ */
+.section {
+  display: none;
+  position: fixed;
+  top: 48px; left: 0; right: 0; bottom: 0;
+}
+.section.active            { display: block; }
+#section-recipes.active    { overflow-y: auto; }
+#section-notes.active      { overflow: hidden; display: flex; flex-direction: column; }
+
+/* ══════════════════ SHARED TOAST ══════════════════ */
+.toast {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--text); color: #fff;
+  padding: 9px 15px; border-radius: 8px; font-size: 13px;
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,.4);
+  opacity: 0; transition: opacity .15s ease;
+  pointer-events: none; z-index: 400;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+/* ══════════════════ NOTES: layout ══════════════════ */
+.notes-app {
+  display: grid;
+  grid-template-columns: 220px 320px 1fr;
+  grid-template-rows: 52px 1fr;
+  height: 100%;
+  width: 100%;
+}
+.notes-topbar {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  direction: ltr;
+}
+.notes-search-wrap {
+  flex: 1; max-width: 520px;
+  display: flex; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px;
+}
+.notes-search-wrap:focus-within { border-color: var(--primary); }
+.notes-search-wrap input { flex: 1; border: 0; background: transparent; outline: none; font-size: 13px; }
+.notes-search-wrap .hint { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+.notes-top-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+
+/* ══════════════════ NOTES: btn class ══════════════════ */
+.btn {
+  padding: 6px 11px; border-radius: 8px;
+  border: 1px solid var(--line); background: #fff;
+  font-size: 13px; cursor: pointer; transition: all .12s ease;
+}
+.btn:hover { border-color: var(--ink-faint); }
+.btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-soft); }
+.btn.ghost:hover { background: var(--bg-alt); color: var(--text); }
+.btn.danger:hover { color: var(--primary-dark); border-color: var(--primary-dark); }
+
+/* ══════════════════ NOTES: status pill ══════════════════ */
+.status-pill {
+  font-size: 12px; color: var(--ink-soft);
+  background: var(--bg-alt); padding: 4px 9px;
+  border-radius: 999px; white-space: nowrap;
+}
+.status-pill.ok   { color: #2f6b3a; background: #d8ebd8; }
+.status-pill.warn { color: #8a5a00; background: #fbeac6; }
+.status-pill.err  { color: #a02020; background: #f5d6d6; }
+
+/* ══════════════════ NOTES: folders pane ══════════════════ */
+.notes-folders {
+  background: var(--bg-alt);
+  border-right: 1px solid var(--line);
+  overflow-y: auto; padding: 10px 6px;
+}
+.folder-section-label {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-faint); padding: 10px 10px 3px; font-weight: 600;
+}
+.folder-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 9px; border-radius: 7px;
+  cursor: pointer; color: var(--text); user-select: none; font-size: 13px;
+}
+.folder-row:hover { background: rgba(0,0,0,.04); }
+.folder-row.active { background: var(--primary); color: #fff; }
+.folder-row.active .folder-count { color: rgba(255,255,255,.85); }
+.folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-count { font-size: 11px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.folder-icon { width: 13px; height: 13px; flex-shrink: 0; opacity: .7; }
+
+/* ══════════════════ NOTES: note list ══════════════════ */
+.notelist {
+  background: var(--panel); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.notelist-header {
+  padding: 9px 12px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.notelist-title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notelist-meta  { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+.notelist-scroll { flex: 1; overflow-y: auto; }
+.note-item { padding: 10px 12px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+.note-item:hover { background: rgba(0,0,0,.025); }
+.note-item.active { background: var(--selected); }
+.note-item-title {
+  font-weight: 600; font-size: 13px; color: var(--text);
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 1; -webkit-box-orient: vertical; word-break: break-word;
+}
+.note-item-meta { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+.note-item-snippet {
+  font-size: 12px; color: var(--ink-soft); margin-top: 3px;
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  word-break: break-word; white-space: pre-wrap;
+}
+mark { background: #fde9b8; color: var(--text); padding: 0 2px; border-radius: 2px; }
+
+/* ══════════════════ NOTES: editor ══════════════════ */
+.notes-editor { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+.editor-toolbar {
+  padding: 9px 16px; border-bottom: 1px solid var(--line);
+  display: flex; gap: 7px; align-items: center; justify-content: space-between;
+  background: var(--panel);
+}
+.editor-toolbar-left, .editor-toolbar-right { display: flex; gap: 5px; align-items: center; }
+.editor-meta { font-size: 11px; color: var(--ink-faint); margin: 0 6px; }
+.editor-scroll { flex: 1; overflow-y: auto; padding: 24px 48px 60px; }
+.editor-inner { max-width: 720px; margin: 0 auto; }
+.editor-title {
+  width: 100%; font-family: var(--serif); font-size: 28px; font-weight: 700;
+  border: 0; background: transparent; outline: none;
+  padding: 5px 0; color: var(--text); line-height: 1.2; margin-bottom: 12px;
+}
+.editor-title-static {
+  font-family: var(--serif); font-size: 28px; font-weight: 700;
+  line-height: 1.2; margin: 5px 0 12px; word-break: break-word;
+}
+.editor-body, .editor-body-static { font-family: var(--serif); font-size: 16px; line-height: 1.65; color: var(--text); }
+.editor-body {
+  width: 100%; border: 0; background: transparent;
+  outline: none; resize: none; min-height: 55vh; padding: 0;
+}
+.editor-body-static { white-space: pre-wrap; word-break: break-word; }
+.editor-body-static img { max-width: 100%; border-radius: 8px; margin: 12px 0; display: block; box-shadow: 0 2px 12px -4px rgba(0,0,0,.18); }
+.notes-empty { height: 100%; display: grid; place-items: center; color: var(--ink-faint); font-family: var(--serif); font-size: 17px; }
+.notes-empty-inner { text-align: center; max-width: 340px; padding: 0 20px; }
+.notes-empty-inner h2 { font-size: 21px; margin: 0 0 8px; color: var(--text); }
+.notes-empty-inner p  { margin: 0; line-height: 1.55; font-size: 13px; font-family: var(--sans); }
+svg.icon { width: 13px; height: 13px; flex-shrink: 0; }
+[dir="auto"] { unicode-bidi: plaintext; }
+
+/* ══════════════════ RECIPES: scoped styles ══════════════════ */
+#section-recipes {
+  font-family: var(--sans);
+  font-size: var(--fs);
+  color: var(--text);
+  direction: rtl;
+  background: var(--bg);
+  line-height: 1.55;
+}
+#section-recipes * { box-sizing: border-box; }
+#section-recipes button {
+  border: 0; background: var(--primary); color: #fff;
+  padding: 10px 16px; border-radius: 999px;
+  font-size: 1em; font-weight: 600; cursor: pointer;
+  transition: transform .1s, background .15s; font-family: inherit;
+}
+#section-recipes button:hover  { background: var(--primary-dark); }
+#section-recipes button:active { transform: scale(.97); }
+#section-recipes button.ghost  { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+#section-recipes button.ghost:hover { background: #fff1e6; }
+#section-recipes button.small  { padding: 6px 11px; font-size: .88em; }
+#section-recipes button:disabled { opacity: .35; cursor: not-allowed; }
+#section-recipes button.danger { background: transparent; color: #c0392b; border: 1.5px solid #c0392b; }
+#section-recipes button.danger:hover { background: #fdf0f0; }
+#section-recipes label {
+  display: block; font-weight: 600; font-size: .89em;
+  color: var(--primary-dark); margin-bottom: 5px;
+}
+#section-recipes input[type=text],
+#section-recipes select,
+#section-recipes textarea {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid var(--border); border-radius: 11px;
+  font-family: inherit; font-size: .95em;
+  background: #fffdf9; color: var(--text); direction: rtl;
+  margin: 0;
+}
+#section-recipes input[type=text]:focus,
+#section-recipes select:focus,
+#section-recipes textarea:focus { outline: 2px solid var(--primary); }
+#section-recipes textarea { min-height: 180px; overflow-y: auto; resize: vertical; }
+#section-recipes select { -webkit-appearance: none; appearance: none; }
+
+#section-recipes .view { display: none; }
+#section-recipes .view.active { display: block; }
+
+#section-recipes header {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff; padding: 14px 16px 16px;
+  position: sticky; top: 0; z-index: 5;
+  box-shadow: var(--shadow);
+}
+#section-recipes header h1 { font-size: 1.3em; font-weight: 700; margin: 0 0 2px; }
+#section-recipes header p  { margin: 0; opacity: .9; font-size: .85em; }
+#view-home header { padding: 7px 16px 9px; }
+#view-home header h1 { font-size: 1em; }
+#view-home header p  { font-size: .76em; }
+.back-btn {
+  display: inline-block; background: rgba(255,255,255,.22); color: #fff;
+  border: 1.5px solid rgba(255,255,255,.45); padding: 5px 12px;
+  font-size: .82em; border-radius: 999px; cursor: pointer;
+  margin-bottom: 6px; font-family: inherit; font-weight: 600;
+}
+.back-btn:hover { background: rgba(255,255,255,.34); }
+
+#section-recipes main { max-width: 720px; margin: 0 auto; padding: 13px; }
+#section-recipes .card {
+  background: var(--card); border-radius: 16px; padding: 14px;
+  margin-bottom: 13px; box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.upload-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.upload-actions button { flex: 1; }
+
+.cat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+.cat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 13px 7px 11px;
+  text-align: center; cursor: pointer; box-shadow: var(--shadow);
+  transition: transform .15s, box-shadow .15s;
+}
+.cat-card:hover  { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,.18); }
+.cat-card:active { transform: scale(.97); }
+.cat-icon  { font-size: 1.9em; margin-bottom: 5px; }
+.cat-name  { font-size: .81em; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
+.cat-count { font-size: .73em; color: var(--muted); margin-top: 2px; }
+
+.search-wrap { padding: 11px; margin-bottom: 13px; }
+.search-wrap .search-row { position: relative; display: flex; align-items: center; gap: 8px; }
+.search-wrap .search-row input { flex: 1; }
+#clearSearchBtn {
+  display: none; padding: 8px 13px;
+  background: var(--border); border: none; border-radius: 10px;
+  font-family: inherit; font-size: .84em; color: var(--text);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+#clearSearchBtn:hover { background: #e8d5c0; }
+.search-wrap input {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  font-family: inherit; font-size: 1em; background: #fffdf9;
+  color: var(--text); direction: rtl;
+}
+.search-wrap input:focus { outline: 2px solid var(--primary); }
+.search-results { margin-top: 9px; }
+.search-item {
+  padding: 9px 11px; border-radius: 10px; border: 1px solid var(--border);
+  margin-bottom: 6px; cursor: pointer; background: #fffdf9;
+}
+.search-item:hover { background: #fff1e6; }
+.search-item .si-title { font-weight: 600; font-size: .93em; }
+.search-item .si-cat   { font-size: .79em; color: var(--muted); margin-top: 2px; }
+.search-empty { font-size: .87em; color: var(--muted); padding: 7px 3px; }
+
+.recipe-item {
+  padding: 12px 13px; border-radius: 12px; border: 1px solid var(--border);
+  margin-bottom: 8px; cursor: pointer; background: var(--card);
+  box-shadow: 0 2px 8px rgba(37,99,235,.06);
+  transition: background .12s, border-color .12s;
+}
+.recipe-item:hover { background: #fff8f1; border-color: var(--accent); }
+.recipe-item .ri-title { font-weight: 700; font-size: .99em; margin-bottom: 2px; }
+.recipe-item .ri-meta  { font-size: .78em; color: var(--muted); }
+
+.reading-bar {
+  display: flex; gap: 7px; flex-wrap: wrap; align-items: center;
+  background: #fff1e6; padding: 9px; border-radius: 12px; margin-bottom: 11px;
+}
+.reading-bar .status { font-size: .84em; color: var(--muted); flex: 1; min-width: 90px; }
+#section-recipes h2.sec {
+  margin: 4px 0 9px; font-size: 1.06em; color: var(--primary-dark);
+  display: flex; align-items: center; gap: 6px;
+}
+ul.ingredients, ol.steps { padding: 0; list-style: none; }
+ul.ingredients li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 6px; border-bottom: 1px dashed var(--border);
+  cursor: pointer; user-select: none;
+}
+ul.ingredients li:last-child { border-bottom: 0; }
+ul.ingredients li input[type=checkbox] {
+  width: 22px; height: 22px; accent-color: var(--primary); cursor: pointer; flex-shrink: 0;
+}
+ul.ingredients li.done { color: var(--muted); text-decoration: line-through; }
+ul.ingredients li.reading { background: #fff1e6; border-radius: 10px; outline: 2px solid var(--primary); }
+#continueBtn { background: var(--done); color: #fff; }
+#continueBtn:not(:disabled) { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(167,199,150,.7);}50%{box-shadow:0 0 0 10px rgba(167,199,150,0);} }
+ol.steps { counter-reset: step; }
+ol.steps li { display: flex; gap: 10px; padding: 10px 6px; border-bottom: 1px dashed var(--border); }
+ol.steps li:last-child { border-bottom: 0; }
+ol.steps li::before {
+  counter-increment: step; content: counter(step);
+  background: var(--accent); color: #fff;
+  min-width: 29px; height: 29px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0; font-size: .88em;
+}
+ol.steps li.current { background: #fff1e6; border-radius: 10px; padding: 10px; }
+ol.steps li.current::before { background: var(--primary); }
+.step-text { flex: 1; }
+.step-actions { margin-top: 6px; display: flex; gap: 6px; }
+.form-group { margin-bottom: 13px; }
+.hidden { display: none !important; }
+.empty-state { text-align: center; padding: 38px 18px; color: var(--muted); font-size: .99em; line-height: 1.9; }
+.empty-icon { font-size: 2.4em; margin-bottom: 9px; }
+.section-title { font-size: .96em; font-weight: 700; color: var(--primary-dark); margin: 2px 0 10px; padding: 0 2px; }
+.fab { width: 100%; border-radius: 14px; padding: 12px; margin-top: 2px; }
+.hint { font-size: .8em; color: var(--muted); margin-top: 4px; }
+.font-controls { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 11px; }
+.font-controls span { font-size: .79em; color: var(--muted); }
+
+#floatContinue {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--done); color: #fff; border: none;
+  padding: 16px 40px; border-radius: 999px;
+  font-size: 1.1em; font-weight: 700; font-family: var(--sans);
+  box-shadow: 0 8px 28px rgba(0,0,0,.22);
+  cursor: pointer; z-index: 150;
+  white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease;
+}
+#floatContinue.reading {
+  opacity: 0.55;
+  pointer-events: none;
+}
+#floatContinue.visible {
+  opacity: 1;
+  pointer-events: auto;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@media (max-width: 700px) {
+  .notes-app { grid-template-columns: 160px 1fr; }
+  .notes-editor { display: none; }
+  .notes-app.note-open .notelist   { display: none; }
+  .notes-app.note-open .notes-editor { display: flex; }
+  .notes-app.note-open .notes-folders { display: none; }
+}
+@media (max-width: 480px) {
+  #section-recipes header h1 { font-size: 1.12em; }
+  #section-recipes main { padding: 9px; }
+  .cat-grid { gap: 7px; }
+  .cat-card { padding: 10px 4px 8px; }
+  .cat-icon { font-size: 1.6em; }
+  .cat-name { font-size: .75em; }
+  #section-recipes button { padding: 9px 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Tab bar -->
+<div id="tab-bar">
+  <button id="tab-notes-btn" class="tab-btn" onclick="switchTab('notes')">📝 פתקים</button>
+  <button id="tab-recipes-btn" class="tab-btn active" onclick="switchTab('recipes')">🍲 מתכונים</button>
+</div>
+
+<!-- ══════════════════════ RECIPES SECTION ══════════════════════ -->
+<div id="section-recipes" class="section active">
+
+  <!-- HOME -->
+  <div id="view-home" class="view active">
+    <header>
+      <h1>🍲 מתכונים</h1>
+      <p>ספר המתכונים האישי שלי</p>
+    </header>
+    <main>
+      <div class="card search-wrap">
+        <div class="search-row">
+          <input type="text" id="searchInput" placeholder="🔍 חיפוש מתכון בכל הקטגוריות..." />
+          <button id="clearSearchBtn">× נקה</button>
+        </div>
+        <div id="searchResults" class="search-results hidden"></div>
+      </div>
+      <p class="section-title">קטגוריות</p>
+      <div class="cat-grid" id="catGrid"></div>
+      <button class="fab" id="goUploadBtn">＋ הוספת מתכון חדש</button>
+      <button class="fab ghost" id="goImportBtn" style="margin-top:8px;">📥 ייבא מפתקים שלי</button>
+    </main>
+  </div>
+
+  <!-- IMPORT FROM NOTES -->
+  <div id="view-import" class="view">
+    <header>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <button class="back-btn" onclick="showView('home')">← חזרה</button>
+        <div style="display:flex;gap:7px;">
+          <button id="importAllBtn" style="padding:7px 13px;background:#fff;color:#2563eb;border:2px solid rgba(255,255,255,.6);border-radius:999px;font-size:.84em;font-weight:700;cursor:pointer;white-space:nowrap;">📥 ייבא הכל</button>
+          <button id="fixTitlesBtn" style="padding:7px 13px;background:transparent;color:rgba(255,255,255,.9);border:2px solid rgba(255,255,255,.45);border-radius:999px;font-size:.84em;font-weight:700;cursor:pointer;white-space:nowrap;">🔧 תקן כותרות</button>
+          <button id="clearImportedBtn" style="padding:7px 13px;background:transparent;color:rgba(255,255,255,.9);border:2px solid rgba(255,255,255,.45);border-radius:999px;font-size:.84em;font-weight:700;cursor:pointer;white-space:nowrap;">🗑️ נקי קודם</button>
+        </div>
+      </div>
+      <h1>📥 ייבא מפתקים</h1>
+      <p id="importSubtitle">טוענת פתקי מתכונים...</p>
+    </header>
+    <main>
+      <div class="card search-wrap">
+        <div class="search-row">
+          <input type="text" id="importSearchInput" placeholder="🔍 חפשי מתכון ספציפי..." />
+          <button id="clearImportSearchBtn" style="display:none;">× נקה</button>
+        </div>
+      </div>
+      <div id="importList"></div>
+      <div id="importEmpty" class="empty-state hidden">
+        <div class="empty-icon">🔍</div>
+        לא נמצאו תוצאות
+      </div>
+    </main>
+  </div>
+
+  <!-- CATEGORY -->
+  <div id="view-category" class="view">
+    <header>
+      <button class="back-btn" onclick="showView('home')">← חזרה</button>
+      <h1 id="catViewTitle">קטגוריה</h1>
+    </header>
+    <main>
+      <div id="recipeList"></div>
+      <div id="catEmpty" class="empty-state hidden">
+        <div class="empty-icon">🍽️</div>
+        אין עדיין מתכונים בקטגוריה זו<br>
+        <button class="ghost" style="margin-top:12px;" id="catAddBtn">הוסיפי מתכון ראשון</button>
+      </div>
+      <button class="fab ghost" id="catFabBtn">＋ הוספת מתכון לקטגוריה</button>
+    </main>
+  </div>
+
+  <!-- UPLOAD -->
+  <div id="view-upload" class="view">
+    <header>
+      <button class="back-btn" id="upBackBtn">← חזרה</button>
+      <button class="back-btn" onclick="goHome()">🏠 בית</button>
+      <h1 id="uploadViewTitle">הוספת מתכון חדש</h1>
+    </header>
+    <main>
+      <div class="card">
+        <div class="form-group">
+          <label for="upTitle">שם המתכון</label>
+          <input type="text" id="upTitle" placeholder="למשל: עוגיות שוקולד צ'יפס" />
+        </div>
+        <div class="form-group">
+          <label for="upCategory">קטגוריה</label>
+          <select id="upCategory">
+            <option value="auto">🤖 זיהוי אוטומטי לפי תוכן</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="upUrl">🔗 קישור מקור (אופציונלי)</label>
+          <div style="display:flex;gap:7px;align-items:center;">
+            <input type="text" id="upUrl" placeholder="https://..." dir="ltr" style="flex:1;" />
+            <button class="small ghost" id="upUrlOpenBtn" type="button">פתיחה ↗</button>
+          </div>
+          <p class="hint">ניתן להדביק כתובת אתר של המתכון המקורי</p>
+        </div>
+        <div class="form-group">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <label for="upText" style="margin-bottom:0;">טקסט המתכון</label>
+            <div style="display:flex;gap:6px;">
+              <button class="small ghost" id="loadFileBtn" type="button">📂 קובץ</button>
+              <button class="small ghost" id="ocrBtn" type="button">📷 זיהוי מתמונה</button>
+            </div>
+            <input type="file" id="fileInput" accept=".txt,.md,.text" style="display:none;" />
+            <input type="file" id="imageInput" accept="image/*" capture="environment" style="display:none;" />
+          </div>
+          <textarea id="upText" placeholder="הדביקי את המתכון כאן...&#10;&#10;מצרכים:&#10;...&#10;&#10;אופן ההכנה:&#10;..."></textarea>
+          <div id="ocrStatus" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;background:#fff8f0;border:1px solid var(--border);font-size:.84em;color:var(--muted);text-align:center;"></div>
+          <p class="hint">האתר יזהה אוטומטית מצרכים ושלבי הכנה לפי הכותרות</p>
+        </div>
+        <div class="upload-actions">
+          <button id="upSaveBtn">💾 שמירת המתכון</button>
+          <button class="ghost" id="upClearBtn">נקי</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- RECIPE VIEWER -->
+  <div id="view-recipe" class="view">
+    <header>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+        <div style="display:flex;gap:6px;">
+          <button class="back-btn" id="recBackBtn">← חזרה</button>
+          <button class="back-btn" onclick="goHome()">🏠</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button id="editRecBtn" style="background:#fff;color:var(--primary);border:2px solid #fff;border-radius:10px;padding:8px 13px;font-size:.88em;font-weight:700;">✏️ עריכה</button>
+          <button id="deleteRecBtn" style="background:transparent;color:#fff;border:2px solid #fff;border-radius:10px;padding:8px 13px;font-size:.88em;font-weight:700;">🗑️ מחיקה</button>
+        </div>
+      </div>
+      <h1 id="recViewTitle" style="font-size:1.06em;margin-top:5px;"></h1>
+    </header>
+    <main>
+      <div class="card">
+        <div class="reading-bar">
+          <button id="readAllBtn">🔊 הקראת המתכון</button>
+          <button id="continueBtn" disabled>⏭ המשך</button>
+          <button class="ghost" id="stopBtn">⏹ עצור</button>
+          <span class="status" id="readStatus">מוכן להקראה</span>
+        </div>
+        <h2 class="sec"><span>🥕</span> מצרכים</h2>
+        <ul class="ingredients" id="ingredientsList"></ul>
+        <h2 class="sec" style="margin-top:17px;"><span>👩‍🍳</span> אופן ההכנה</h2>
+        <div class="reading-bar" style="margin-top:7px;">
+          <button id="startStepsBtn">▶️ שלב-שלב</button>
+          <button class="ghost" id="nextStepBtn">הבא ⏭</button>
+          <button class="ghost" id="repeatStepBtn">🔁 חזרה</button>
+          <span class="status" id="stepStatus">—</span>
+        </div>
+        <ol class="steps" id="stepsList"></ol>
+        <div id="recNotes" class="hidden" style="background:var(--bg-alt);border-radius:10px;padding:11px 14px;margin-top:14px;font-size:.95em;line-height:1.7;white-space:pre-wrap;color:var(--text);"></div>
+        <div class="font-controls">
+          <span>גודל טקסט:</span>
+          <button class="small ghost" id="fontMinus">א-</button>
+          <button class="small ghost" id="fontReset">100%</button>
+          <button class="small ghost" id="fontPlus">א+</button>
+        </div>
+      </div>
+      <div id="recSourceWrap" class="hidden" style="padding:0 2px 6px;">
+        <a id="recSourceLink" href="#" target="_blank" rel="noopener"
+          style="display:inline-flex;align-items:center;gap:5px;color:var(--primary);font-size:.87em;font-weight:600;text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 13px;background:var(--card);">
+          🔗 פתיחת מקור המתכון
+        </a>
+      </div>
+      <div style="height:22px;"></div>
+    </main>
+  </div>
+
+</div>
+
+<!-- ══════════════════════ NOTES SECTION ══════════════════════ -->
+<div id="section-notes" class="section">
+  <div class="notes-app" id="notesApp">
+    <header class="notes-topbar">
+      <div class="notes-search-wrap">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="notesSearch" type="search" placeholder="Search all notes…" autocomplete="off" />
+        <span class="hint" id="notesSearchHint"></span>
+      </div>
+      <div class="notes-top-actions">
+        <span id="notesStatusPill" class="status-pill">Read-only</span>
+        <button class="btn ghost" id="notesEnableSaveBtn">Enable saving</button>
+        <button class="btn primary" id="notesNewNoteBtn">+ New note</button>
+      </div>
+    </header>
+
+    <aside class="notes-folders" id="notesFolders"></aside>
+
+    <section class="notelist">
+      <div class="notelist-header">
+        <div class="notelist-title" id="notesNotelistTitle">All notes</div>
+        <div class="notelist-meta"  id="notesNotelistMeta"></div>
+      </div>
+      <div class="notelist-scroll" id="notesNotelist"></div>
+    </section>
+
+    <main class="notes-editor" id="notesEditor">
+      <div class="notes-empty" id="notesEmptyState">
+        <div class="notes-empty-inner">
+          <h2>Pick a note</h2>
+          <p>Choose a folder on the left to browse, or use the search bar to find anything across all notes.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<button id="floatContinue" aria-label="המשך הקראה">⏭ המשך</button>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   GLOBAL: tab switching & shared toast
+═══════════════════════════════════════════════════ */
+function switchTab(which) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + which).classList.add('active');
+  document.getElementById('tab-' + which + '-btn').classList.add('active');
+}
+window.switchTab = switchTab;
+
+function showToast(msg, ms) {
+  ms = ms || 1800;
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* ═══════════════════════════════════════════════════
+   RECIPES APP
+═══════════════════════════════════════════════════ */
+(function () {
+'use strict';
+
+const CATS = [
+  { id: 'meat',     name: 'בשר',           icon: '🥩' },
+  { id: 'chicken',  name: 'עוף',           icon: '🍗' },
+  { id: 'fish',     name: 'דגים',          icon: '🐟' },
+  { id: 'pasta',    name: 'פסטה ואורז',    icon: '🍝' },
+  { id: 'savory',   name: 'אפייה מלוחים', icon: '🥐' },
+  { id: 'soups',    name: 'מרקים',         icon: '🍲' },
+  { id: 'salads',   name: 'סלטים',         icon: '🥗' },
+  { id: 'veggies',  name: 'ירקות',         icon: '🥦' },
+  { id: 'hosting',  name: 'ארוח',          icon: '🎉' },
+  { id: 'sweet',    name: 'אפייה מתוקים', icon: '🧁' },
+  { id: 'desserts', name: 'קינוחים',       icon: '🍮' },
+  { id: 'other',    name: 'שונות',         icon: '🍽️' },
+];
+
+const KW = {
+  chicken:  ['עוף','חזה עוף','שוק עוף','כרעיים','כנפיים','פרגית','הודו','ברווז','אווז','קורניש','ביריאני','טיקה','מרינדה עוף','שניצל עוף','גריל עוף'],
+  meat:     ['בקר','כבש','עגל','נקניק','המבורגר','סטייק','צלי','קציצ','שניצל','כבד','אסאדו','ריב','בשר טחון','פילה בקר','קבב','ברבקיו','אנטריקוט','בשר בקר','ספריבס','ליבה','פולקה'],
+  fish:     ['דג','סלמון','טונה','בקלה','קרפיון','לוברה','מוסר','דניס','פורל','שרימפס','קלמרי','פירות ים','בס ים','גפילטע','כבד דג','אנשובי','הרינג'],
+  pasta:    ['פסטה','ספגטי','ריזוטו','קוסקוס','אטריות','לזניה','פנה','פוסילי','פטוצ\'יני','ניוקי','אורז','פדאוס','בורגול','פארו'],
+  savory:   ['מאפה','לחם','בצק שמרים','פיצה','פוקצ\'ה','קיש','בורקס','ג\'חנון','בייגלה','פיתה','לחמניות','טארט מלוח','מאפה מלוח','כריך','סנדוויץ','באגט','לאפה','מסמן','כתיף'],
+  soups:    ['מרק','ציר','מינסטרונה','בורש','שקשוקה','פו ','רמן','נודלס','מרק עוף','מרק בצל','גספצ\'ו','מרק ירקות','מרק עדשים','מרק שעועית'],
+  salads:   ['סלט','חסה','קפרזה','טבולה','כוסמת','קינואה','ירקות טריים','סלט ירק','סלט עגבניות','סלט חצילים','סלט גזר','וואלדורף'],
+  veggies:  ['ירקות','חציל','פטרייה','פטריות','קישוא','דלעת','שעועית','עדשים','תרד','ברוקולי','כרובית','אספרגוס','טופו','תפוח אדמה','פטטה','בטטה','גזר','כרוב','בצל','שום צלוי','ירקות קלויים','ירקות מוקפצים','ציד','צ\'ילי ירקות'],
+  hosting:  ['קנפה','ברוסקטה','ממרח','דיפ','פינגר','מזנון','נגיסים','לחם שום','גמבה','טפס','חומוס','טחינה','בבגנוש','גואקמולה','פסטו','ריקוטה'],
+  sweet:    ['עוגה','מאפין','בראוניז','עוגיות','רולד','חלה','קאפקייק','טארט מתוק','קינמון','סקונס','שוקולד צ\'יפס','עוגת גבינה','עוגת שמרים','רוגלך','עלי בצק'],
+  desserts: ['קינוח','גלידה','מוס','פנקוטה','טירמיסו','קרם ברולה','פאי','פודינג','סורבה','קרפ','וופל','פרפה','חלבה','מוצ\'י','טרופל','פרלין','שוקולד פונדו'],
+};
+
+const KEY = 'matkonim_v1';
+function loadRecipes() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e) { return []; } }
+function saveRecipes(arr) { try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch(e) {} }
+
+function autoCategory(title, text) {
+  const t = title.toLowerCase();
+  // בדיקת כותרת קודם
+  if (/עוף|פרגית|הודו|ביריאני|טיקה/.test(t))             return 'chicken';
+  if (/דג|סלמון|טונה|שרימפס|פירות ים/.test(t))           return 'fish';
+  if (/פסטה|ספגטי|ריזוטו|קוסקוס|לזניה|אורז/.test(t))    return 'pasta';
+  if (/מרק|ציר|שקשוקה/.test(t))                          return 'soups';
+  if (/סלט/.test(t))                                      return 'salads';
+  if (/קינוח|גלידה|מוס|טירמיסו|סורבה/.test(t))           return 'desserts';
+  if (/עוגה|עוגיות|מאפין|בראוניז|קאפקייק/.test(t))       return 'sweet';
+  if (/לחם|פיצה|פוקצ|בורקס|קיש|בייגלה|פיתה|מאפה מלוח|כריך|סנדוויץ/.test(t)) return 'savory';
+  if (/ממרח|דיפ|חומוס|טחינה|בבגנוש|גואקמולה/.test(t))   return 'hosting';
+  if (/קבב|סטייק|בשר|שניצל|המבורגר|קציצ|אסאדו/.test(t)) return 'meat';
+  if (/ירקות|חציל|פטרייה|קישוא|בטטה|כרובית|ברוקולי/.test(t)) return 'veggies';
+  // בדיקה מלאה בטקסט
+  const full = (title + ' ' + text.slice(0, 400)).toLowerCase();
+  const order = ['chicken','meat','fish','pasta','soups','salads','veggies','hosting','desserts','sweet','savory'];
+  for (const cat of order) {
+    for (const kw of KW[cat]) {
+      if (full.includes(kw.toLowerCase())) return cat;
+    }
+  }
+  return 'other';
+}
+
+function parseRecipe(text) {
+  const res = { title: '', ingredients: [], steps: [], notes: '' };
+  if (!text || !text.trim()) return res;
+  const lines = text.replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
+  const ingKW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?)(\s|[:\-–—(]|$)/i;
+  const stepKW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|שלבי(\s+הכנה)?|הוראות\s+הביצוע|דרך\s+ה?הכנה|שיטת\s+הכנה|ביצוע|הכנת|הוראות|preparation|instructions?|method|directions?)(\s|[:\-–—(]|$)/i;
+  const ingH  = l => ingKW.test(l)  && l.length < 60;
+  const stepH = l => stepKW.test(l) && l.length < 60;
+  let title = '', ingStart = -1, ingEnd = -1, stepStart = -1, stepEnd = lines.length;
+  let titleIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]; if (!l) continue;
+    if (!title && ingStart === -1 && stepStart === -1) {
+      if (!ingH(l) && !stepH(l)) { title = l; titleIdx = i; continue; }
+    }
+    if (ingH(l))  { if (ingStart === -1) ingStart = i + 1; continue; }
+    if (stepH(l)) { if (ingStart !== -1 && ingEnd === -1) ingEnd = i; stepStart = i + 1; }
+  }
+  if (ingStart !== -1 && ingEnd === -1) ingEnd = stepStart !== -1 ? stepStart - 1 : lines.length;
+  res.title = title || '';
+  if (ingStart !== -1) for (let i = ingStart; i < ingEnd; i++) {
+    const r = lines[i]; if (!r) continue;
+    const c = r.replace(/^[-•*–·‐]+\s*/, '').replace(/^\d+[\.\)]\s*/, '').trim();
+    if (c) res.ingredients.push(c);
+  }
+  if (stepStart !== -1) {
+    let buf = '';
+    const flushStep = () => {
+      const t = buf.trim().replace(/\.\s*$/, '');
+      if (t.length > 2) res.steps.push(t);
+      buf = '';
+    };
+    for (let i = stepStart; i < stepEnd; i++) {
+      const r = lines[i];
+      if (!r) { flushStep(); continue; }
+      if (/^\d+[\.\)]\s+/.test(r))     { flushStep(); buf = r.replace(/^\d+[\.\)]\s+/, '').replace(/\.\s*$/, ''); flushStep(); }
+      else if (/^[-•*–·‐]\s+/.test(r)) { flushStep(); buf = r.replace(/^[-•*–·‐]\s+/, '').replace(/\.\s*$/, ''); flushStep(); }
+      else {
+        buf += (buf ? ' ' : '') + r;
+        if (/\.\s*$/.test(r)) flushStep(); // שורה מסתיימת בנקודה → שלב נפרד
+      }
+    }
+    flushStep();
+  }
+  if (!res.ingredients.length) {
+    const isIngLine = l =>
+      /^[\d½¼¾⅓⅔⅛⅜⅝⅞]/.test(l) ||
+      /^\d+[\/\d]*\s+/.test(l) ||
+      /^(כף|כפיות?|כוסות?|ק"ג|גרם|מ"ל|ליטר|חבילת?|קופסת?|ענפי?|שיני|שן|פרוסות?|מעט|קמצוץ|חצי|רבע|שליש)\s/i.test(l);
+    const boundary = stepStart !== -1 ? stepStart - 1 : lines.length;
+    const autoIngs = [];
+    for (let i = 0; i < boundary; i++) {
+      const l = lines[i]; if (!l) continue;
+      if (isIngLine(l)) autoIngs.push(l.replace(/^[-•*–·‐]+\s*/, '').trim());
+    }
+    if (autoIngs.length >= 2) {
+      res.ingredients = autoIngs;
+      if (res.title && isIngLine(res.title)) res.title = '';
+    }
+  }
+  if (!res.steps.length && res.ingredients.length && stepStart === -1) {
+    const isIngLine = l =>
+      /^[\d½¼¾⅓⅔⅛⅜⅝⅞]/.test(l) ||
+      /^\d+[\/\d]*\s+/.test(l) ||
+      /^(כף|כפיות?|כוסות?|ק"ג|גרם|מ"ל|ליטר|חבילת?|קופסת?|ענפי?|שיני|שן|פרוסות?|מעט|קמצוץ|חצי|רבע|שליש)\s/i.test(l);
+    let splitIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i] && isIngLine(lines[i])) splitIdx = i + 1;
+    }
+    if (splitIdx < lines.length) {
+      let buf = '';
+      const flush2 = () => {
+        const t = buf.trim().replace(/\.\s*$/, '');
+        if (t.length > 2) res.steps.push(t);
+        buf = '';
+      };
+      for (let i = splitIdx; i < lines.length; i++) {
+        const r = lines[i];
+        if (!r) { flush2(); continue; }
+        if (/^\d+[\.\)]\s+/.test(r))     { flush2(); buf = r.replace(/^\d+[\.\)]\s+/, '').replace(/\.\s*$/, ''); flush2(); }
+        else if (/^[-•*–·‐]\s+/.test(r)) { flush2(); buf = r.replace(/^[-•*–·‐]\s+/, '').replace(/\.\s*$/, ''); flush2(); }
+        else {
+          buf += (buf ? ' ' : '') + r;
+          if (/\.\s*$/.test(r)) flush2();
+        }
+      }
+      flush2();
+    }
+  }
+  // פיצול שלבים לפי משפטים — כל משפט שמסתיים בנקודה = שלב נפרד
+  if (res.steps.length) {
+    const splitSteps = [];
+    for (const step of res.steps) {
+      // פיצול על נקודה שאחריה אות (עברית/לטינית) — עם או בלי רווח — אך לא לפני ספרה
+      const parts = step.split(/\.(?=\s*[א-תװ-״יִ-פֿA-Za-z])/);
+      for (const p of parts) {
+        const t = p.trim().replace(/\.\s*$/, '');
+        if (t.length > 3) splitSteps.push(t);
+      }
+    }
+    if (splitSteps.length > 0) res.steps = splitSteps;
+  }
+  // Capture intro notes: text between title line and first section header
+  const noteStart = titleIdx !== -1 ? titleIdx + 1 : 0;
+  const noteEnd   = ingStart !== -1 ? ingStart - 1 : (stepStart !== -1 ? stepStart - 1 : lines.length);
+  const noteLines = [];
+  for (let i = noteStart; i < noteEnd; i++) { if (lines[i]) noteLines.push(lines[i]); }
+  res.notes = noteLines.join('\n').trim();
+  return res;
+}
+
+// Router
+let prevView = 'home';
+let currentCatId = null;
+let currentRecId = null;
+
+function showView(id) {
+  document.querySelectorAll('#section-recipes .view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById('view-' + id);
+  if (el) el.classList.add('active');
+  if (id === 'home') clearSearch();
+  document.getElementById('section-recipes').scrollTo({ top: 0, behavior: 'smooth' });
+  if (id === 'home') renderHome();
+}
+window.showView = showView;
+
+// Home view
+const catGrid       = document.getElementById('catGrid');
+const searchInput   = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+
+function renderHome() {
+  const recipes = loadRecipes();
+  catGrid.innerHTML = '';
+  CATS.forEach(cat => {
+    const count = recipes.filter(r => r.category === cat.id).length;
+    const div = document.createElement('div');
+    div.className = 'cat-card';
+    div.innerHTML = `<div class="cat-icon">${cat.icon}</div>
+      <div class="cat-name">${cat.name}</div>
+      <div class="cat-count">${count} מתכון${count !== 1 ? 'ות' : ''}</div>`;
+    div.addEventListener('click', () => openCategory(cat.id));
+    catGrid.appendChild(div);
+  });
+}
+
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+function clearSearch() {
+  searchInput.value = '';
+  searchResults.classList.add('hidden');
+  searchResults.innerHTML = '';
+  clearSearchBtn.style.display = 'none';
+}
+clearSearchBtn.addEventListener('click', clearSearch);
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  clearSearchBtn.style.display = q ? 'block' : 'none';
+  if (!q) { searchResults.classList.add('hidden'); searchResults.innerHTML = ''; return; }
+  const hits = loadRecipes().filter(r =>
+    r.title.includes(q) ||
+    (r.ingredients || []).some(i => i.includes(q)) ||
+    (r.text || '').includes(q)
+  );
+  searchResults.innerHTML = '';
+  if (!hits.length) {
+    searchResults.innerHTML = '<div class="search-empty">לא נמצאו תוצאות</div>';
+  } else {
+    hits.forEach(r => {
+      const cat = CATS.find(c => c.id === r.category);
+      const div = document.createElement('div');
+      div.className = 'search-item';
+      div.innerHTML = `<div class="si-title">${r.title}</div>
+        <div class="si-cat">${cat ? cat.icon + ' ' + cat.name : ''}</div>`;
+      div.addEventListener('click', () => {
+        searchInput.value = ''; searchResults.classList.add('hidden'); searchResults.innerHTML = '';
+        prevView = 'home'; openRecipe(r.id);
+      });
+      searchResults.appendChild(div);
+    });
+  }
+  searchResults.classList.remove('hidden');
+});
+
+document.getElementById('goUploadBtn').addEventListener('click', () => {
+  prevView = 'home'; resetUploadForm(); showView('upload');
+});
+
+// Category view
+const catViewTitle = document.getElementById('catViewTitle');
+const recipeList   = document.getElementById('recipeList');
+const catEmpty     = document.getElementById('catEmpty');
+
+function openCategory(catId) {
+  currentCatId = catId; prevView = 'category';
+  const cat = CATS.find(c => c.id === catId);
+  catViewTitle.textContent = cat ? cat.icon + ' ' + cat.name : 'קטגוריה';
+  renderCategoryList(catId);
+  showView('category');
+}
+function renderCategoryList(catId) {
+  const recipes = loadRecipes().filter(r => r.category === catId);
+  recipeList.innerHTML = '';
+  if (!recipes.length) { catEmpty.classList.remove('hidden'); return; }
+  catEmpty.classList.add('hidden');
+  recipes.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'recipe-item';
+    const date = new Date(r.createdAt).toLocaleDateString('he-IL');
+    const ingCount = (r.ingredients || []).length;
+    const contentTag = ingCount ? `${ingCount} מצרכים` : (r.notes || (r.steps||[]).length ? '📄 טקסט חופשי' : '—');
+    div.innerHTML = `<div class="ri-title">${r.title || 'ללא שם'}</div>
+      <div class="ri-meta">${contentTag} &bull; ${date}</div>`;
+    div.addEventListener('click', () => { prevView = 'category'; openRecipe(r.id); });
+    recipeList.appendChild(div);
+  });
+}
+function goToUploadForCat() {
+  resetUploadForm();
+  document.getElementById('upCategory').value = currentCatId || 'auto';
+  showView('upload');
+}
+document.getElementById('catFabBtn').addEventListener('click', goToUploadForCat);
+document.getElementById('catAddBtn').addEventListener('click', goToUploadForCat);
+
+// Upload view
+const upTitle    = document.getElementById('upTitle');
+const upCategory = document.getElementById('upCategory');
+const upText     = document.getElementById('upText');
+const upUrl      = document.getElementById('upUrl');
+let editingRecipeId = null;
+
+CATS.forEach(cat => {
+  const opt = document.createElement('option');
+  opt.value = cat.id; opt.textContent = cat.icon + ' ' + cat.name;
+  upCategory.appendChild(opt);
+});
+
+function reconstructText(rec) {
+  let t = (rec.title || '') + '\n\n';
+  if (rec.notes) t += rec.notes + '\n\n';
+  if ((rec.ingredients || []).length) t += 'מצרכים:\n' + rec.ingredients.join('\n') + '\n\n';
+  if ((rec.steps || []).length) t += 'אופן ההכנה:\n' + rec.steps.map((s, i) => (i + 1) + '. ' + s).join('\n');
+  return t.trim();
+}
+function openForEdit(id) {
+  const rec = loadRecipes().find(r => r.id === id);
+  if (!rec) return;
+  editingRecipeId = id;
+  document.getElementById('uploadViewTitle').textContent = 'עריכת מתכון';
+  document.getElementById('upSaveBtn').textContent = '💾 שמירת שינויים';
+  upTitle.value    = rec.title || '';
+  upCategory.value = rec.category || 'auto';
+  upUrl.value      = rec.url || '';
+  upText.value     = rec.text || reconstructText(rec);
+  showView('upload');
+}
+function resetUploadForm() {
+  editingRecipeId = null;
+  document.getElementById('uploadViewTitle').textContent = 'הוספת מתכון חדש';
+  document.getElementById('upSaveBtn').textContent = '💾 שמירת המתכון';
+  upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto';
+}
+document.getElementById('upBackBtn').addEventListener('click', () => {
+  const dest = editingRecipeId ? 'recipe' : (prevView === 'category' ? 'category' : 'home');
+  resetUploadForm(); showView(dest);
+});
+document.getElementById('upClearBtn').addEventListener('click', () => { upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto'; });
+
+const fileInput  = document.getElementById('fileInput');
+document.getElementById('loadFileBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result; upText.value = text;
+    if (!upTitle.value.trim()) {
+      const firstLine = text.split('\n').find(l => l.trim());
+      if (firstLine) upTitle.value = firstLine.replace(/^#+\s*/, '').trim();
+    }
+    fileInput.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+document.getElementById('upUrlOpenBtn').addEventListener('click', () => {
+  const url = upUrl.value.trim();
+  if (url) window.open(url, '_blank', 'noopener');
+  else alert('הדביקי קישור תחילה');
+});
+
+// OCR
+const ocrBtn     = document.getElementById('ocrBtn');
+const imageInput = document.getElementById('imageInput');
+const ocrStatus  = document.getElementById('ocrStatus');
+
+function setOcrStatus(msg, color) {
+  ocrStatus.style.display = msg ? 'block' : 'none';
+  ocrStatus.textContent = msg;
+  ocrStatus.style.color = color || 'var(--muted)';
+}
+let tesseractLoaded = false;
+function loadTesseract() {
+  if (tesseractLoaded || window.Tesseract) { tesseractLoaded = true; return Promise.resolve(); }
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload  = () => { tesseractLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('טעינת Tesseract נכשלה'));
+    document.head.appendChild(s);
+  });
+}
+async function runOCR(source) {
+  setOcrStatus('טוען מנוע זיהוי טקסט...');
+  try {
+    await loadTesseract();
+    setOcrStatus('מוריד נתוני שפה עברית (פעם ראשונה בלבד)...');
+    const worker = await Tesseract.createWorker('heb', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') setOcrStatus('מזהה טקסט... ' + Math.round(m.progress * 100) + '%');
+        else if (m.status === 'loading language traineddata') setOcrStatus('מוריד נתוני שפה עברית... ' + Math.round(m.progress * 100) + '%');
+      }
+    });
+    const { data: { text } } = await worker.recognize(source);
+    await worker.terminate();
+    const cleaned = text.trim();
+    if (cleaned.length > 5) {
+      upText.value = cleaned;
+      setOcrStatus('✅ הטקסט זוהה! בדקי ותקני שגיאות לפי הצורך, ואז לחצי שמירה.', 'green');
+      if (!upTitle.value.trim()) {
+        const first = cleaned.split('\n').find(l => l.trim());
+        if (first) upTitle.value = first.replace(/^#+\s*/, '').trim();
+      }
+      setTimeout(() => document.getElementById('upSaveBtn').scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    } else {
+      setOcrStatus('⚠️ לא זוהה טקסט. נסי תמונה ברורה יותר עם תאורה טובה.', 'orange');
+    }
+  } catch (err) {
+    setOcrStatus('❌ שגיאה בזיהוי. בדקי חיבור אינטרנט ונסי שוב.', 'red');
+    console.error('OCR error:', err);
+  }
+}
+ocrBtn.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', () => { const file = imageInput.files[0]; if (!file) return; runOCR(file); imageInput.value = ''; });
+document.addEventListener('paste', (e) => {
+  if (!document.getElementById('view-upload').classList.contains('active')) return;
+  const items = Array.from(e.clipboardData.items);
+  const imageItem = items.find(it => it.type.startsWith('image/'));
+  if (!imageItem) return;
+  e.preventDefault();
+  const file = imageItem.getAsFile();
+  if (file) runOCR(file);
+});
+
+document.getElementById('upSaveBtn').addEventListener('click', () => {
+  const titleVal = upTitle.value.trim();
+  const textVal  = upText.value.trim();
+  const urlVal   = upUrl.value.trim();
+  if (!textVal) { alert('בבקשה הדביקי טקסט של מתכון'); return; }
+  const parsed = parseRecipe(textVal);
+  const finalTitle = titleVal || parsed.title || 'מתכון חדש';
+  let cat = upCategory.value;
+  if (cat === 'auto') cat = autoCategory(finalTitle, textVal);
+  let recs = loadRecipes();
+  if (editingRecipeId) {
+    recs = recs.map(r => r.id === editingRecipeId
+      ? { ...r, title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal }
+      : r);
+    saveRecipes(recs);
+    const updatedId = editingRecipeId;
+    resetUploadForm();
+    prevView = currentCatId ? 'category' : 'home';
+    openRecipe(updatedId);
+  } else {
+    const recipe = { id: Date.now(), title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, createdAt: Date.now() };
+    recs.push(recipe); saveRecipes(recs);
+    resetUploadForm(); openCategory(cat);
+  }
+});
+
+// TTS
+const synth = window.speechSynthesis;
+let voices = [];
+function loadVoices() { voices = synth ? synth.getVoices() : []; }
+if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+function pickHebrew() { return voices.find(v => /he|iw|hebrew/i.test(v.lang)) || null; }
+function speakText(text, onend) {
+  if (!synth) { if (onend) onend(); return; }
+  synth.cancel();
+  const cleaned = text
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{1F300}-\u{1F9FF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{25AA}-\u{25FE}\u{2614}\u{2615}\u{2648}-\u{2653}\u{267F}\u{2693}\u{26A1}\u{26AA}\u{26AB}\u{26BD}\u{26BE}\u{26C4}\u{26C5}\u{26CE}\u{26D4}\u{26EA}\u{26F2}\u{26F3}\u{26F5}\u{26FA}\u{26FD}\u{2702}\u{2705}\u{2708}-\u{270D}\u{270F}\u{2712}\u{2714}\u{2716}\u{271D}\u{2721}\u{2728}\u{2733}\u{2734}\u{2744}\u{2747}\u{274C}\u{274E}\u{2753}-\u{2755}\u{2757}\u{2763}\u{2764}\u{2795}-\u{2797}\u{27A1}\u{27B0}\u{27BF}]/gu, '')
+    .replace(/["""״''`]/g, '')
+    .replace(/[()[\]{}]/g, ' ')
+    .replace(/[:,;]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(cleaned);
+    const v = pickHebrew(); if (v) u.voice = v; u.lang = v ? v.lang : 'he-IL'; u.rate = 0.95;
+    let done = false;
+    const finish = () => { if (done) return; done = true; if (onend) onend(); };
+    const watchdog = setTimeout(finish, Math.max(cleaned.length * 120, 4000));
+    u.onend   = () => { clearTimeout(watchdog); finish(); };
+    u.onerror = () => { clearTimeout(watchdog); finish(); };
+    synth.speak(u);
+  }, 50);
+}
+
+// Recipe view
+const recViewTitle    = document.getElementById('recViewTitle');
+const ingredientsList = document.getElementById('ingredientsList');
+const stepsList       = document.getElementById('stepsList');
+const readAllBtn      = document.getElementById('readAllBtn');
+const continueBtn     = document.getElementById('continueBtn');
+const stopBtn         = document.getElementById('stopBtn');
+const readStatus      = document.getElementById('readStatus');
+const startStepsBtn   = document.getElementById('startStepsBtn');
+const nextStepBtn     = document.getElementById('nextStepBtn');
+const repeatStepBtn   = document.getElementById('repeatStepBtn');
+const stepStatus      = document.getElementById('stepStatus');
+const floatContinue   = document.getElementById('floatContinue');
+
+let recState = { title: '', ingredients: [], steps: [], notes: '', currentStep: -1 };
+let queue = [], qIdx = 0, qActive = false;
+
+function highlightIng(idx) { Array.from(ingredientsList.children).forEach((li, i) => li.classList.toggle('reading', i === idx)); }
+function highlightCurrent(idx) { Array.from(stepsList.children).forEach((li, i) => li.classList.toggle('current', i === idx)); }
+function showContinue(show) {
+  continueBtn.disabled = !show;
+  floatContinue.classList.toggle('visible', show);
+  floatContinue.classList.toggle('reading', qActive && !show);
+}
+
+function buildQueue() {
+  const q = [];
+  if (recState.title) q.push({ text: recState.title + '.', pauseAfter: false });
+  if (recState.ingredients.length) {
+    q.push({ text: 'המצרכים:', pauseAfter: false });
+    recState.ingredients.forEach((ing, idx) => q.push({ text: ing + '.', pauseAfter: true, onStart: () => highlightIng(idx), ingredientIdx: idx }));
+  }
+  if (recState.steps.length) {
+    q.push({ text: 'אופן ההכנה:', pauseAfter: false, onStart: () => highlightIng(-1) });
+    recState.steps.forEach((s, i) => q.push({ text: 'שלב ' + (i+1) + '. ' + s, pauseAfter: true, stepIdx: i, onStart: () => { recState.currentStep = i; highlightCurrent(i); } }));
+  }
+  // אם אין מצרכים ושלבים — קרא את הטקסט החופשי כשלבים לפי משפטים
+  if (!recState.ingredients.length && !recState.steps.length && recState.notes) {
+    const sentences = recState.notes.split(/\.\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
+    sentences.forEach((s, i) => q.push({ text: s, pauseAfter: i < sentences.length - 1, stepIdx: i }));
+  }
+  return q;
+}
+
+function playNext() {
+  if (!qActive) return;
+  if (qIdx >= queue.length) {
+    qActive = false; showContinue(false); highlightIng(-1);
+    readStatus.textContent = 'ההקראה הסתיימה 🎉'; return;
+  }
+  const item = queue[qIdx]; if (item.onStart) item.onStart();
+  if (item.ingredientIdx !== undefined) readStatus.textContent = 'מצרך ' + (item.ingredientIdx+1) + ' מתוך ' + recState.ingredients.length;
+  else if (item.stepIdx !== undefined) readStatus.textContent = 'שלב ' + (item.stepIdx+1) + ' מתוך ' + recState.steps.length;
+  else readStatus.textContent = 'מקריאה...';
+  showContinue(false);
+  speakText(item.text, () => {
+    if (!qActive) return; qIdx++;
+    if (item.pauseAfter && qIdx < queue.length) {
+      showContinue(true);
+      readStatus.textContent = item.stepIdx !== undefined ? 'לחצי "המשך" לשלב הבא' : 'לחצי "המשך" למצרך הבא';
+    } else playNext();
+  });
+}
+
+readAllBtn.addEventListener('click', () => {
+  if (!recState.ingredients.length && !recState.steps.length && !recState.notes) return;
+  queue = buildQueue(); qIdx = 0; qActive = true; playNext();
+});
+continueBtn.addEventListener('click',  () => { if (!qActive) return; playNext(); });
+floatContinue.addEventListener('click', () => { if (!qActive) return; playNext(); });
+stopBtn.addEventListener('click', () => {
+  if (synth) synth.cancel(); qActive = false; showContinue(false);
+  readStatus.textContent = 'עצר.'; stepStatus.textContent = '—';
+  highlightCurrent(-1); highlightIng(-1);
+});
+
+function speakStep(idx) {
+  if (idx < 0 || idx >= recState.steps.length) return;
+  recState.currentStep = idx; highlightCurrent(idx);
+  stepStatus.textContent = 'שלב ' + (idx+1) + ' מתוך ' + recState.steps.length;
+  speakText('שלב ' + (idx+1) + '. ' + recState.steps[idx]);
+}
+startStepsBtn.addEventListener('click',  () => { if (!recState.steps.length) return; speakStep(0); });
+nextStepBtn.addEventListener('click',    () => { const n = recState.currentStep + 1; if (n >= recState.steps.length) { stepStatus.textContent = 'סיימת את כל השלבים 🎉'; return; } speakStep(n); });
+repeatStepBtn.addEventListener('click',  () => { if (recState.currentStep < 0) { speakStep(0); return; } speakStep(recState.currentStep); });
+
+function splitStepsOnPeriod(steps) {
+  const result = [];
+  for (const step of steps) {
+    const parts = step.split(/\.(?=\s*[א-תװ-״A-Za-z])/);
+    for (const p of parts) {
+      const t = p.trim().replace(/\.\s*$/, '');
+      if (t.length > 3) result.push(t);
+    }
+  }
+  return result.length > steps.length ? result : steps;
+}
+
+function openRecipe(id) {
+  let rec = loadRecipes().find(r => r.id === id);
+  if (!rec) return;
+  currentRecId = id;
+  if (synth) synth.cancel(); qActive = false; showContinue(false);
+  let ingredients = rec.ingredients || [];
+  let steps = rec.steps || [];
+  if (rec.text && (!ingredients.length || !steps.length)) {
+    const rp = parseRecipe(rec.text);
+    if (rp.ingredients.length) ingredients = rp.ingredients;
+    if (rp.steps.length) steps = rp.steps;
+    if (rp.ingredients.length || rp.steps.length) {
+      const all = loadRecipes().map(r => r.id === id ? { ...r, ingredients, steps } : r);
+      saveRecipes(all);
+    }
+  }
+  steps = splitStepsOnPeriod(steps);
+  recState = { title: rec.title, ingredients, steps, notes: rec.notes || '', currentStep: -1 };
+  recViewTitle.textContent = rec.title;
+  const srcWrap = document.getElementById('recSourceWrap');
+  const srcLink = document.getElementById('recSourceLink');
+  if (rec.url) { srcLink.href = rec.url; srcWrap.classList.remove('hidden'); }
+  else srcWrap.classList.add('hidden');
+  renderRecipeView();
+  showView('recipe');
+}
+
+function renderRecipeView() {
+  const recNotesEl = document.getElementById('recNotes');
+  if (recState.notes) {
+    recNotesEl.textContent = recState.notes;
+    recNotesEl.classList.remove('hidden');
+  } else {
+    recNotesEl.classList.add('hidden');
+  }
+  ingredientsList.innerHTML = '';
+  recState.ingredients.forEach((ing, idx) => {
+    const li = document.createElement('li');
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'ing-' + idx;
+    const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = ing; lbl.style.flex = '1';
+    li.appendChild(cb); li.appendChild(lbl);
+    cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+    li.addEventListener('click', e => { if (e.target === cb || e.target === lbl) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+    ingredientsList.appendChild(li);
+  });
+  stepsList.innerHTML = '';
+  recState.steps.forEach((step, idx) => {
+    const li   = document.createElement('li');
+    const text = document.createElement('div'); text.className = 'step-text'; text.textContent = step;
+    const acts = document.createElement('div'); acts.className = 'step-actions';
+    const rb   = document.createElement('button'); rb.className = 'small ghost'; rb.textContent = '🔊 הקראה';
+    rb.addEventListener('click', e => { e.stopPropagation(); speakStep(idx); });
+    acts.appendChild(rb); text.appendChild(acts); li.appendChild(text);
+    stepsList.appendChild(li);
+  });
+  readStatus.textContent = 'מוכן להקראה';
+  stepStatus.textContent = '—';
+}
+
+document.getElementById('recBackBtn').addEventListener('click', () => {
+  if (synth) synth.cancel(); qActive = false; showContinue(false);
+  showView(prevView);
+  if (prevView === 'category' && currentCatId) renderCategoryList(currentCatId);
+});
+document.getElementById('editRecBtn').addEventListener('click', () => {
+  if (synth) synth.cancel(); qActive = false; showContinue(false);
+  openForEdit(currentRecId);
+});
+document.getElementById('deleteRecBtn').addEventListener('click', () => {
+  if (!confirm('למחוק את המתכון לצמיתות?')) return;
+  saveRecipes(loadRecipes().filter(r => r.id !== currentRecId));
+  if (synth) synth.cancel(); qActive = false; showContinue(false);
+  const goTo = prevView === 'category' ? 'category' : 'home';
+  showView(goTo);
+  if (goTo === 'category' && currentCatId) renderCategoryList(currentCatId);
+});
+
+// Font size
+const BASE_FS = 17;
+let fontSize = parseInt(localStorage.getItem('matkonim_fs') || BASE_FS, 10);
+function applyFont() {
+  document.documentElement.style.setProperty('--fs', fontSize + 'px');
+  document.getElementById('fontReset').textContent = Math.round((fontSize / BASE_FS) * 100) + '%';
+  localStorage.setItem('matkonim_fs', fontSize);
+}
+document.getElementById('fontPlus').addEventListener('click',  () => { fontSize = Math.min(30, fontSize + 2); applyFont(); });
+document.getElementById('fontMinus').addEventListener('click', () => { fontSize = Math.max(12, fontSize - 2); applyFont(); });
+document.getElementById('fontReset').addEventListener('click', () => { fontSize = BASE_FS; applyFont(); });
+applyFont();
+
+function goHome() { if (synth) synth.cancel(); qActive = false; showContinue(false); showView('home'); }
+window.goHome = goHome;
+
+// ── IMPORT FROM NOTES ────────────────────────────────────────────────────────
+
+let importNotesCache = null;
+const NOTES_RECIPE_FOLDER = '62668801-DEFC-4E74-AEF0-FE1D3CB768FA';
+
+function stripAnoteMarkup(body) {
+  if (!body) return '';
+  return body
+    .replace(/<@media[^>]*?\/>/g, '')
+    .replace(/<@font[^>]*>/g, '').replace(/<\/@font>/g, '')
+    .replace(/<@h[12]>([\s\S]*?)<\/@h[12]>/g, '$1\n')
+    .replace(/<\/?@[a-z0-9_]+(?::[^>]*)?>/gi, '')
+    .replace(/  +/g, ' ')
+    .trim();
+}
+
+function cleanImportTitle(title) {
+  if (!title) return '';
+  // drop bare URLs as title
+  if (/^https?:\/\//.test(title.trim())) return '';
+  // drop site-name suffix like " - FoodIsGood"
+  return title.replace(/\s*[-–|]\s*[^-–|]{3,40}$/, '').trim();
+}
+
+async function loadImportNotes() {
+  if (importNotesCache) return importNotesCache;
+  const r = await fetch('./notes.json');
+  const d = await r.json();
+  const notes = d.notes
+    .filter(n => n.folder_id === NOTES_RECIPE_FOLDER)
+    .map(n => {
+      const clean = stripAnoteMarkup(n.body);
+      const url   = ((n.body || '').match(/https?:\/\/[^\s<\n]+/)?.[0] || '').replace(/[.,;:!?)]+$/, '');
+      // Title: note's own title → first non-URL non-empty line in body → fallback
+      let title = cleanImportTitle(n.title);
+      if (!title) {
+        for (const line of clean.split('\n')) {
+          const l = line.trim();
+          if (!l || /^https?:\/\//.test(l)) continue;
+          title = cleanImportTitle(l) || l;
+          if (title.length > 2) break;
+          title = '';
+        }
+      }
+      return {
+        id:    n.id,
+        title: title || 'מתכון ללא שם',
+        raw:   n.body || '',
+        clean,
+        url,
+      };
+    })
+    // הסרת פתקים ריקים — רק URL בלבד ללא תוכן מתכון אמיתי
+    .filter(n => {
+      const textWithoutUrls = n.clean.replace(/https?:\/\/[^\s]+/g, '').replace(/\s+/g, ' ').trim();
+      return textWithoutUrls.length >= 30;
+    })
+    .sort((a, b) => a.title.localeCompare(b.title, 'he'));
+  importNotesCache = notes;
+  return notes;
+}
+
+function renderImportList(notes, query) {
+  const list    = document.getElementById('importList');
+  const empty   = document.getElementById('importEmpty');
+  const filtered = query
+    ? notes.filter(n => n.title.includes(query) || n.clean.includes(query))
+    : notes;
+
+  if (!filtered.length) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  const shown = filtered.slice(0, 300);
+  list.innerHTML = shown.map(n => {
+    const snippet = n.clean.replace(/\n+/g, ' ').slice(0, 90);
+    const hasStructure = /מצרכים|רכיבים|אופן|הוראות|מרכיבים/.test(n.clean);
+    return `<div class="recipe-item import-note-item" data-id="${n.id}">
+      <div class="ri-title">${n.title}</div>
+      <div class="ri-meta">${hasStructure ? '✅ יש מצרכים ושלבים' : '📄 טקסט חופשי'} ${n.url ? '· 🔗 קישור' : ''}</div>
+      <div style="font-size:.78em;color:var(--muted);margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${snippet}</div>
+    </div>`;
+  }).join('');
+
+  if (filtered.length > 300) {
+    list.innerHTML += `<div style="padding:12px;text-align:center;color:var(--muted);font-size:.85em;">מוצגות 300 מתוך ${filtered.length} — צמצמי את החיפוש</div>`;
+  }
+
+  list.querySelectorAll('.import-note-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const note = importNotesCache.find(n => n.id === el.dataset.id);
+      if (note) importNoteToForm(note);
+    });
+  });
+}
+
+function importNoteToForm(note) {
+  resetUploadForm();
+  document.getElementById('uploadViewTitle').textContent = 'ייבא מתכון מפתק';
+  document.getElementById('upSaveBtn').textContent = '💾 שמירת המתכון';
+  upTitle.value = note.title !== 'מתכון ללא שם' ? note.title : '';
+  upUrl.value   = note.url;
+  // הסרת כל ה-URLs מהטקסט — לא רק הראשון
+  const cleanedText = note.clean
+    .replace(/https?:\/\/[^\s\n]+/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  upText.value = cleanedText;
+  prevView = 'import';
+  showView('upload');
+  setTimeout(() => {
+    // הרחב את הטקסטאריאה לפי התוכן
+    upText.style.height = 'auto';
+    upText.style.height = upText.scrollHeight + 'px';
+    // גלגל לשדה הקישור כדי שיהיה גלוי
+    if (note.url) {
+      upUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast('🔗 קישור יובא אוטומטית לשדה הקישור');
+    } else {
+      showToast('📄 המתכון יובא — לא נמצא קישור');
+    }
+  }, 120);
+}
+
+async function openImportView() {
+  showView('import');
+  document.getElementById('importSubtitle').textContent = 'טוענת פתקי מתכונים...';
+  document.getElementById('importList').innerHTML = '';
+  try {
+    const notes = await loadImportNotes();
+    const alreadyImported = loadRecipes().filter(r => r.noteId).length;
+    const remaining = notes.length - alreadyImported;
+    document.getElementById('importSubtitle').textContent =
+      alreadyImported > 0
+        ? `${notes.length} פתקי מתכונים · ${alreadyImported} יובאו · ${remaining} ממתינים`
+        : `${notes.length} פתקי מתכונים — בחרי אחד לייבוא`;
+    renderImportList(notes, '');
+  } catch (e) {
+    document.getElementById('importSubtitle').textContent = 'שגיאה בטעינה — הפעילי את האפליקציה דרך start.command';
+  }
+}
+
+async function importAllRecipes() {
+  const btn = document.getElementById('importAllBtn');
+  btn.disabled = true;
+  btn.textContent = 'טוענת...';
+  let notes;
+  try {
+    notes = await loadImportNotes();
+  } catch (e) {
+    showToast('❌ שגיאה בטעינת הפתקים');
+    btn.disabled = false;
+    btn.textContent = '📥 ייבא את כולם אוטומטית';
+    return;
+  }
+
+  const existing    = loadRecipes();
+  const importedIds = new Set(existing.map(r => r.noteId).filter(Boolean));
+  const toImport    = notes.filter(n => !importedIds.has(n.id));
+
+  if (!toImport.length) {
+    showToast('✅ כל המתכונים כבר יובאו!');
+    btn.disabled = false;
+    btn.textContent = '📥 ייבא את כולם אוטומטית';
+    return;
+  }
+
+  if (!confirm(`לייבא ${toImport.length} מתכונים מהפתקים שלך?\n(${importedIds.size ? importedIds.size + ' כבר קיימים ולא יכופלו' : 'ייבוא ראשוני'})`)) {
+    btn.disabled = false;
+    btn.textContent = '📥 ייבא את כולם אוטומטית';
+    return;
+  }
+
+  btn.textContent = `מייבא ${toImport.length} מתכונים...`;
+  document.getElementById('importSubtitle').textContent = 'מייבא — נא להמתין...';
+
+  const newRecipes = [];
+  const base = Date.now();
+
+  for (let i = 0; i < toImport.length; i++) {
+    const note = toImport[i];
+    // הסרת כל ה-URLs מהטקסט לפיענוח נקי
+    const cleanedText = note.clean
+      .replace(/https?:\/\/[^\s\n]+/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    // דילוג על פתקים ריקים
+    if (cleanedText.replace(/\s+/g, ' ').trim().length < 30) continue;
+    const parsed = parseRecipe(cleanedText);
+    // Use note title (already cleaned), fall back to parsed title (strip URL if needed)
+    const parsedTitleClean = cleanImportTitle(parsed.title);
+    const finalTitle = note.title !== 'מתכון ללא שם'
+      ? note.title
+      : (parsedTitleClean || 'מתכון ללא שם');
+    const cat = autoCategory(finalTitle, cleanedText);
+    newRecipes.push({
+      id:          base + i,
+      noteId:      note.id,
+      title:       finalTitle,
+      category:    cat,
+      ingredients: parsed.ingredients,
+      steps:       parsed.steps,
+      notes:       parsed.notes || '',
+      url:         note.url || '',
+      createdAt:   base,
+    });
+  }
+
+  try {
+    saveRecipes([...existing, ...newRecipes]);
+    showToast(`✅ יובאו ${newRecipes.length} מתכונים בהצלחה!`);
+    switchTab('recipes');
+    showView('home');
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      showToast('⚠️ האחסון המקומי מלא — חלק מהמתכונים יובאו');
+    } else {
+      showToast('❌ שגיאה בשמירה');
+    }
+  }
+  btn.disabled = false;
+  btn.textContent = '📥 ייבא את כולם אוטומטית';
+}
+
+async function fixAllTitles() {
+  const btn = document.getElementById('fixTitlesBtn');
+  btn.disabled = true;
+  btn.textContent = 'מתקן...';
+  try {
+    const r   = await fetch('./notes.json');
+    const d   = await r.json();
+    // בנה מפה noteId → כותרת מנוקה מהפתק המקורי
+    const noteMap = new Map();
+    for (const n of d.notes) {
+      if (n.folder_id !== NOTES_RECIPE_FOLDER) continue;
+      const clean = stripAnoteMarkup(n.body || '');
+      // נסה כותרת הפתק קודם
+      let title = cleanImportTitle(n.title);
+      // אם ריק — שורה ראשונה משמעותית בגוף
+      if (!title) {
+        for (const line of clean.split('\n')) {
+          const l = line.trim();
+          if (!l || /^https?:\/\//.test(l)) continue;
+          const t = cleanImportTitle(l) || l;
+          if (t.length > 2 && t.length < 120) { title = t; break; }
+        }
+      }
+      if (title) noteMap.set(n.id, title);
+    }
+    const recipes = loadRecipes();
+    let fixed = 0;
+    const updated = recipes.map(rec => {
+      if (!rec.noteId) return rec;
+      const newTitle = noteMap.get(rec.noteId);
+      if (!newTitle) return rec;
+      // השתמש בכותרת החדשה רק אם היא שונה ולא "מתכון ללא שם"
+      if (newTitle !== rec.title && newTitle !== 'מתכון ללא שם') {
+        fixed++;
+        return { ...rec, title: newTitle };
+      }
+      return rec;
+    });
+    saveRecipes(updated);
+    showToast(`✅ תוקנו ${fixed} כותרות`);
+  } catch (e) {
+    showToast('⚠️ שגיאה בתיקון כותרות');
+  }
+  btn.disabled = false;
+  btn.textContent = '🔧 תקן כותרות';
+}
+
+document.getElementById('goImportBtn').addEventListener('click', openImportView);
+document.getElementById('importAllBtn').addEventListener('click', importAllRecipes);
+document.getElementById('fixTitlesBtn').addEventListener('click', fixAllTitles);
+document.getElementById('clearImportedBtn').addEventListener('click', () => {
+  const all = loadRecipes();
+  const bulk = all.filter(r => r.noteId);
+  if (!bulk.length) { showToast('אין מתכונים מיובאים למחיקה'); return; }
+  if (!confirm(`למחוק ${bulk.length} מתכונים שיובאו מהפתקים? (מתכונים שהוספת ידנית לא יימחקו)`)) return;
+  saveRecipes(all.filter(r => !r.noteId));
+  importNotesCache = null; // reset cache so subtitle updates
+  openImportView();
+  showToast(`🗑️ נמחקו ${bulk.length} מתכונים — אפשר לייבא מחדש`);
+});
+
+const importSearchInput  = document.getElementById('importSearchInput');
+const clearImportSearchBtn = document.getElementById('clearImportSearchBtn');
+
+importSearchInput.addEventListener('input', () => {
+  const q = importSearchInput.value.trim();
+  clearImportSearchBtn.style.display = q ? 'block' : 'none';
+  if (importNotesCache) renderImportList(importNotesCache, q);
+});
+clearImportSearchBtn.addEventListener('click', () => {
+  importSearchInput.value = '';
+  clearImportSearchBtn.style.display = 'none';
+  if (importNotesCache) renderImportList(importNotesCache, '');
+});
+
+renderHome();
+
+})(); // end recipes IIFE
+
+/* ═══════════════════════════════════════════════════
+   NOTES APP
+═══════════════════════════════════════════════════ */
+(function () {
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const escHtml = (s) => (s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escAttr = escHtml;
+
+function setStatus(text, kind) {
+  kind = kind || '';
+  const p = $('notesStatusPill');
+  p.textContent = text;
+  p.className = 'status-pill ' + kind;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  if (iso.startsWith('-') || (iso.startsWith('19') && iso < '1990')) return '';
+  const d = new Date(iso + 'Z'); if (isNaN(d)) return '';
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
+}
+function fmtDateLong(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'Z'); if (isNaN(d)) return '';
+  return d.toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' });
+}
+
+// State
+const state = {
+  data: null,
+  folderId: '__all__',
+  selectedNoteId: null,
+  searchQuery: '',
+  editing: false,
+  dirHandle: null,
+  imagesHandle: null,
+  unsavedChanges: false,
+};
+
+// Load data
+async function loadData() {
+  try {
+    const r = await fetch('./notes.json');
+    if (!r.ok) throw new Error(r.statusText);
+    state.data = await r.json();
+  } catch (e) {
+    setStatus('Could not load notes.json', 'err');
+    $('notesEmptyState').innerHTML = `<div class="notes-empty-inner">
+      <h2>notes.json not found</h2>
+      <p>Make sure you opened the app via <code>start.command</code>, not by double-clicking the HTML file.</p>
+    </div>`;
+    throw e;
+  }
+}
+
+// Folders
+function renderFolders() {
+  const el = $('notesFolders');
+  const counts = {};
+  for (const n of state.data.notes) counts[n.folder_id] = (counts[n.folder_id] || 0) + 1;
+  const folders = state.data.folders.slice().sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+  let html = `<div class="folder-section-label">Library</div>`;
+  html += renderFolderRow({ id: '__all__', name: 'All notes', count: state.data.notes.length });
+  html += `<div class="folder-section-label">Folders</div>`;
+  for (const f of folders) {
+    const c = counts[f.id] || 0; if (c === 0) continue;
+    html += renderFolderRow({ id: f.id, name: f.name, count: c });
+  }
+  const emptyFolders = folders.filter(f => !counts[f.id]);
+  if (emptyFolders.length) {
+    html += `<div class="folder-section-label">Empty</div>`;
+    for (const f of emptyFolders) html += renderFolderRow({ id: f.id, name: f.name, count: 0 });
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('.folder-row').forEach(row => row.addEventListener('click', () => selectFolder(row.dataset.id)));
+}
+function renderFolderRow({ id, name, count }) {
+  const active = state.folderId === id ? ' active' : '';
+  const icon = id === '__all__'
+    ? `<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>`
+    : `<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
+  return `<div class="folder-row${active}" data-id="${escAttr(id)}">${icon}<div class="folder-name" dir="auto">${escHtml(name)}</div><div class="folder-count">${count}</div></div>`;
+}
+function selectFolder(id) {
+  state.folderId = id; state.selectedNoteId = null; state.editing = false;
+  $('notesApp').classList.remove('note-open');
+  renderFolders(); renderNoteList(); renderEditor();
+}
+function getFolderName(id) {
+  if (id === '__all__') return 'All notes';
+  const f = state.data.folders.find(x => x.id === id);
+  return f ? f.name : '(unknown folder)';
+}
+
+// Note list
+function getFilteredNotes() {
+  let notes = state.data.notes;
+  if (state.folderId !== '__all__') notes = notes.filter(n => n.folder_id === state.folderId);
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    notes = notes.filter(n => (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q));
+  }
+  return notes.slice().sort((a, b) => (b.modified || b.created || '').localeCompare(a.modified || a.created || ''));
+}
+function snippetFor(body, q) {
+  const text = stripMarkup(body || '').replace(/\s+/g, ' ').trim();
+  if (!q) return text.slice(0, 120);
+  const lower = text.toLowerCase();
+  const i = lower.indexOf(q.toLowerCase());
+  if (i < 0) return text.slice(0, 120);
+  const start = Math.max(0, i - 40);
+  const end   = Math.min(text.length, i + q.length + 80);
+  let s = text.slice(start, end);
+  if (start > 0) s = '… ' + s;
+  if (end < text.length) s = s + ' …';
+  return highlight(s, q);
+}
+function highlight(s, q) {
+  if (!q) return escHtml(s);
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig');
+  return escHtml(s).replace(re, m => `<mark>${m}</mark>`);
+}
+function renderNoteList() {
+  const notes = getFilteredNotes();
+  $('notesNotelistTitle').textContent = state.searchQuery ? `Search: "${state.searchQuery}"` : getFolderName(state.folderId);
+  $('notesNotelistMeta').textContent  = `${notes.length} ${notes.length === 1 ? 'note' : 'notes'}`;
+  const el = $('notesNotelist');
+  if (notes.length === 0) { el.innerHTML = `<div style="padding:38px 18px;color:var(--ink-faint);text-align:center;font-size:13px">No notes here</div>`; return; }
+  const shown = notes.slice(0, 500);
+  el.innerHTML = shown.map(n => `
+    <div class="note-item ${state.selectedNoteId === n.id ? 'active' : ''}" data-id="${escAttr(n.id)}">
+      <div class="note-item-title" dir="auto">${highlight(n.title || '(untitled)', state.searchQuery)}</div>
+      <div class="note-item-meta">${escHtml(fmtDate(n.modified || n.created))}</div>
+      <div class="note-item-snippet" dir="auto">${snippetFor(n.body, state.searchQuery)}</div>
+    </div>
+  `).join('') + (notes.length > shown.length ? `<div style="padding:12px;color:var(--ink-faint);font-size:12px;text-align:center">Showing 500 of ${notes.length}. Refine search to see more.</div>` : '');
+  el.querySelectorAll('.note-item').forEach(row => row.addEventListener('click', () => selectNote(row.dataset.id)));
+}
+function selectNote(id) {
+  if (state.editing && state.unsavedChanges && !confirm('Discard unsaved changes?')) return;
+  state.selectedNoteId = id; state.editing = false; state.unsavedChanges = false;
+  $('notesApp').classList.add('note-open');
+  renderNoteList(); renderEditor();
+}
+
+// Editor
+function renderEditor() {
+  const el = $('notesEditor');
+  if (!state.selectedNoteId) {
+    el.innerHTML = `<div class="notes-empty"><div class="notes-empty-inner"><h2>Pick a note</h2><p>Choose a folder on the left, or search across all your notes.</p></div></div>`;
+    return;
+  }
+  const n = state.data.notes.find(x => x.id === state.selectedNoteId);
+  if (!n) { el.innerHTML = ''; return; }
+  const folderOptions = state.data.folders.filter(f => f.id)
+    .map(f => `<option value="${escAttr(f.id)}" ${f.id === n.folder_id ? 'selected' : ''}>${escHtml(f.name)}</option>`).join('');
+
+  if (state.editing) {
+    el.innerHTML = `
+      <div class="editor-toolbar">
+        <div class="editor-toolbar-left">
+          <button class="btn primary" id="noteSaveBtn">Save</button>
+          <button class="btn ghost"   id="noteCancelBtn">Cancel</button>
+          <span class="editor-meta">Editing</span>
+        </div>
+        <div class="editor-toolbar-right">
+          <select id="noteMoveSelect" class="btn" title="Folder">${folderOptions}</select>
+          <button class="btn ghost"   id="noteInsertImgBtn">+ Image</button>
+          <input type="file" id="noteImgFile" accept="image/*" style="display:none" />
+        </div>
+      </div>
+      <div class="editor-scroll">
+        <div class="editor-inner">
+          <input class="editor-title" id="noteEditTitle" dir="auto" value="${escAttr(n.title)}" />
+          <textarea class="editor-body" id="noteEditBody" dir="auto">${escHtml(n.body)}</textarea>
+        </div>
+      </div>`;
+    const markDirty = () => { state.unsavedChanges = true; };
+    $('noteEditTitle').addEventListener('input', markDirty);
+    $('noteEditBody').addEventListener('input', markDirty);
+    $('noteSaveBtn').addEventListener('click', saveCurrent);
+    $('noteCancelBtn').addEventListener('click', cancelEdit);
+    $('noteMoveSelect').addEventListener('change', markDirty);
+    $('noteInsertImgBtn').addEventListener('click', () => $('noteImgFile').click());
+    $('noteImgFile').addEventListener('change', (e) => insertImage(e.target.files[0]));
+    autoSizeTextarea($('noteEditBody'));
+    setTimeout(() => $('noteEditTitle').focus(), 30);
+  } else {
+    el.innerHTML = `
+      <div class="editor-toolbar">
+        <div class="editor-toolbar-left">
+          <button class="btn primary" id="noteEditBtn">Edit</button>
+          <span class="editor-meta">${escHtml(getFolderName(n.folder_id))}${fmtDateLong(n.modified) ? ' · Modified ' + escHtml(fmtDateLong(n.modified)) : ''}</span>
+        </div>
+        <div class="editor-toolbar-right">
+          <button class="btn ghost danger" id="noteDeleteBtn">Delete</button>
+        </div>
+      </div>
+      <div class="editor-scroll">
+        <div class="editor-inner">
+          <div class="editor-title-static" dir="auto">${escHtml(n.title || '(untitled)')}</div>
+          <div class="editor-body-static"  dir="auto">${renderBody(n.body)}</div>
+        </div>
+      </div>`;
+    $('noteEditBtn').addEventListener('click', () => { state.editing = true; renderEditor(); });
+    $('noteDeleteBtn').addEventListener('click', deleteCurrent);
+  }
+}
+function autoSizeTextarea(t) {
+  const fit = () => { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 8) + 'px'; };
+  fit(); t.addEventListener('input', fit);
+}
+
+// aNote markup renderer
+function renderBody(body) {
+  if (!body) return '<div style="color:var(--ink-faint);font-style:italic">(empty note)</div>';
+  let s = body.replace(/<@font[^>]*>/g, '').replace(/<\/@font>/g, '');
+  s = s.replace(/<@h1>([\s\S]*?)<\/@h1>/g, (_, c) => `<h1 style="font-size:22px;margin:12px 0 6px;font-family:var(--serif)">${escHtml(c)}</h1>`);
+  s = s.replace(/<@h2>([\s\S]*?)<\/@h2>/g, (_, c) => `<h2 style="font-size:18px;margin:10px 0 5px;font-family:var(--serif)">${escHtml(c)}</h2>`);
+  const repl = [];
+  s = s.replace(/<\/?@(b|i|u)>|<@media\s+[^>]*?\/>/g, m => { repl.push(m); return `${repl.length - 1}`; });
+  s = escHtml(s);
+  s = s.replace(/(\d+)/g, (_, i) => {
+    const tag = repl[+i];
+    if (tag === '<@b>') return '<strong>';  if (tag === '</@b>') return '</strong>';
+    if (tag === '<@i>') return '<em>';      if (tag === '</@i>') return '</em>';
+    if (tag === '<@u>') return '<u>';       if (tag === '</@u>') return '</u>';
+    const m = tag && tag.match(/filename=['"]([^'"]+)['"]/);
+    if (m) return `<img src="images/${encodeURIComponent(m[1])}" alt="" loading="lazy" onerror="this.style.display='none'"/>`;
+    return '';
+  });
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+function stripMarkup(body) {
+  if (!body) return '';
+  return body.replace(/<@media[^>]*?\/>/g, ' [image] ').replace(/<\/?@[a-z0-9_]+(?::[^>]*)?>/gi, '');
+}
+
+// Editing actions
+function cancelEdit() {
+  if (state.unsavedChanges && !confirm('Discard changes?')) return;
+  state.editing = false; state.unsavedChanges = false; renderEditor();
+}
+async function saveCurrent() {
+  const n = state.data.notes.find(x => x.id === state.selectedNoteId);
+  if (!n) return;
+  n.title     = $('noteEditTitle').value;
+  n.body      = $('noteEditBody').value;
+  n.folder_id = $('noteMoveSelect').value;
+  n.modified  = new Date().toISOString().slice(0, 19);
+  state.editing = false; state.unsavedChanges = false;
+  renderFolders(); renderNoteList(); renderEditor();
+  await persist();
+}
+async function deleteCurrent() {
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  const idx = state.data.notes.findIndex(x => x.id === state.selectedNoteId);
+  if (idx < 0) return;
+  state.data.notes.splice(idx, 1);
+  state.selectedNoteId = null;
+  $('notesApp').classList.remove('note-open');
+  renderFolders(); renderNoteList(); renderEditor();
+  await persist();
+}
+function newNote() {
+  const id = (crypto.randomUUID ? crypto.randomUUID() : ('new-' + Date.now())).toUpperCase();
+  const folderId = state.folderId !== '__all__' ? state.folderId : (state.data.folders[0] && state.data.folders[0].id);
+  const now = new Date().toISOString().slice(0, 19);
+  const n = { id, title: 'New note', body: '', folder_id: folderId, created: now, modified: now };
+  state.data.notes.unshift(n);
+  state.selectedNoteId = id; state.editing = true; state.unsavedChanges = false;
+  $('notesApp').classList.add('note-open');
+  renderFolders(); renderNoteList(); renderEditor();
+}
+async function insertImage(file) {
+  if (!file) return;
+  if (!state.imagesHandle) { showToast('Enable saving first to attach images'); return; }
+  const ext = (file.name.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0];
+  const fname = `img_${(crypto.randomUUID ? crypto.randomUUID() : Date.now()).toString().toUpperCase()}${ext}`;
+  try {
+    const fh = await state.imagesHandle.getFileHandle(fname, { create: true });
+    const w  = await fh.createWritable();
+    await w.write(await file.arrayBuffer()); await w.close();
+    const tag = `<@media type='${file.type || 'image/jpeg'}' filename='${fname}'/>`;
+    const ta  = $('noteEditBody');
+    const start = ta.selectionStart || ta.value.length;
+    ta.value = ta.value.slice(0, start) + '\n' + tag + '\n' + ta.value.slice(start);
+    state.unsavedChanges = true;
+    showToast('Image attached');
+    autoSizeTextarea(ta);
+  } catch (e) { console.error(e); showToast('Could not save image: ' + e.message); }
+}
+
+// IndexedDB handle persistence
+function openIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('notesApp', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = rej;
+  });
+}
+async function saveHandleToIDB(handle) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, 'appDir');
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+  } catch {}
+}
+async function loadHandleFromIDB() {
+  try {
+    const db = await openIDB();
+    return await new Promise((res, rej) => {
+      const tx  = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get('appDir');
+      req.onsuccess = () => res(req.result);
+      req.onerror   = rej;
+    });
+  } catch { return null; }
+}
+
+// Persistence
+async function persist() {
+  if (!state.dirHandle) { showToast('Changes kept in memory. Click "Enable saving" to write to disk.'); return; }
+  try {
+    const fh = await state.dirHandle.getFileHandle('notes.json', { create: true });
+    const w  = await fh.createWritable();
+    await w.write(JSON.stringify(state.data)); await w.close();
+    setStatus('Saved · ' + new Date().toLocaleTimeString(), 'ok');
+  } catch (e) {
+    console.error(e); setStatus('Save failed', 'err');
+    showToast('Save failed: ' + e.message);
+  }
+}
+async function applyDirHandle(dh) {
+  state.dirHandle = dh;
+  try { state.imagesHandle = await dh.getDirectoryHandle('images', { create: true }); } catch {}
+  await saveHandleToIDB(dh);
+  setStatus('Editing enabled', 'ok');
+}
+async function pickAppFolder() {
+  if (!('showDirectoryPicker' in window)) { showToast('This browser does not support folder access. Use Chrome or Edge for editing.'); return; }
+  try {
+    const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
+    try { await dh.getFileHandle('notes.json'); } catch {
+      if (!confirm('That folder does not contain a notes.json. Continue anyway?')) return;
+    }
+    await applyDirHandle(dh);
+  } catch (e) { if (e.name !== 'AbortError') showToast('Could not enable saving: ' + e.message); }
+}
+async function tryRestoreHandle() {
+  const dh = await loadHandleFromIDB();
+  if (!dh) return;
+  try {
+    const perm = await dh.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') { await applyDirHandle(dh); }
+    else {
+      const req = await dh.requestPermission({ mode: 'readwrite' });
+      if (req === 'granted') await applyDirHandle(dh);
+    }
+  } catch {}
+}
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e) => {
+  if (!document.getElementById('section-notes').classList.contains('active')) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 's' && state.editing) { e.preventDefault(); saveCurrent(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('notesSearch').focus(); }
+  if (e.key === 'Escape' && state.editing) cancelEdit();
+});
+
+$('notesSearch').addEventListener('input', (e) => { state.searchQuery = e.target.value.trim(); renderNoteList(); });
+$('notesNewNoteBtn').addEventListener('click', newNote);
+$('notesEnableSaveBtn').addEventListener('click', pickAppFolder);
+
+(async () => {
+  try { await loadData(); } catch { return; }
+  renderFolders();
+  renderNoteList();
+  setStatus(`${state.data.notes.length} notes · read-only`);
+  await tryRestoreHandle();
+})();
+
+})(); // end notes IIFE
+</script>
+</body>
+</html>
