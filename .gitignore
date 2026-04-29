@@ -4,3 +4,7 @@ aNote_App/notes.json
 aNote_App/.DS_Store
 aNote_App/aNote/
 *.md
+
+# Private files — stored locally in ~/Documents/private_notes
+aNote_App/images/
+aNote_App/aNote/
