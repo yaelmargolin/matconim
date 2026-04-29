@@ -531,7 +531,7 @@ function parseRecipe(text) {
   const res = { title: '', ingredients: [], steps: [], notes: '' };
   if (!text || !text.trim()) return res;
   const lines = text.replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
-  const ingKW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?)(\s|[:\-–—(]|$)/i;
+  const ingKW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|המרכיבים|רשימת\s+המרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?|for\s+the)(\s|[:\-–—(]|$)/i;
   const stepKW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|שלבי(\s+הכנה)?|הוראות\s+הביצוע|דרך\s+ה?הכנה|שיטת\s+הכנה|ביצוע|הכנת|הוראות|preparation|instructions?|method|directions?)(\s|[:\-–—(]|$)/i;
   const ingH  = l => ingKW.test(l)  && l.length < 60;
   const stepH = l => stepKW.test(l) && l.length < 60;
