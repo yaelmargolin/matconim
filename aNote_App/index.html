@@ -497,12 +497,13 @@ const KW = {
   desserts: ['קינוח','גלידה','מוס','פנקוטה','טירמיסו','קרם ברולה','פאי','פודינג','סורבה','קרפ','וופל','פרפה','חלבה','מוצ\'י','טרופל','פרלין','שוקולד פונדו'],
 };
 
-const KEY = 'matkonim_v6';
+const KEY = 'matkonim_v7';
 localStorage.removeItem('matkonim_v1');
 localStorage.removeItem('matkonim_v2');
 localStorage.removeItem('matkonim_v3');
 localStorage.removeItem('matkonim_v4');
 localStorage.removeItem('matkonim_v5');
+localStorage.removeItem('matkonim_v6');
 function loadRecipes() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e) { return []; } }
 function saveRecipes(arr) { try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch(e) {} }
 
