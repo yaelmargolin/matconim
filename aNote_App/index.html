@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#2563eb" />
-<title>מתכונים</title>
+<title>מרשמים</title>
 <style>
 /* ══════════════════ SHARED TOKENS ══════════════════ */
 :root {
@@ -298,7 +298,7 @@ ol.steps li.current::before { background: var(--primary); }
 
 <!-- Header bar -->
 <div id="tab-bar">
-  <span class="app-title">🍲 מתכונים</span>
+  <span class="app-title">🍲 מרשמים</span>
 </div>
 
 <!-- ══════════════════════ RECIPES SECTION ══════════════════════ -->
@@ -307,20 +307,20 @@ ol.steps li.current::before { background: var(--primary); }
   <!-- HOME -->
   <div id="view-home" class="view active">
     <header>
-      <h1>🍲 מתכונים</h1>
-      <p>ספר המתכונים האישי שלי</p>
+      <h1>🍲 מרשמים</h1>
+      <p>ספר המרשמים האישי שלי</p>
     </header>
     <main>
       <div class="card search-wrap">
         <div class="search-row">
-          <input type="text" id="searchInput" placeholder="🔍 חיפוש מתכון בכל הקטגוריות..." />
+          <input type="text" id="searchInput" placeholder="🔍 חיפוש מרשם בכל הקטגוריות..." />
           <button id="clearSearchBtn">× נקה</button>
         </div>
         <div id="searchResults" class="search-results hidden"></div>
       </div>
       <p class="section-title">קטגוריות</p>
       <div class="cat-grid" id="catGrid"></div>
-      <button class="fab" id="goUploadBtn">＋ הוספת מתכון חדש</button>
+      <button class="fab" id="goUploadBtn">＋ הוספת מרשם חדש</button>
     </main>
   </div>
 
@@ -334,10 +334,10 @@ ol.steps li.current::before { background: var(--primary); }
       <div id="recipeList"></div>
       <div id="catEmpty" class="empty-state hidden">
         <div class="empty-icon">🍽️</div>
-        אין עדיין מתכונים בקטגוריה זו<br>
-        <button class="ghost" style="margin-top:12px;" id="catAddBtn">הוסיפי מתכון ראשון</button>
+        אין עדיין מרשמים בקטגוריה זו<br>
+        <button class="ghost" style="margin-top:12px;" id="catAddBtn">הוסיפי מרשם ראשון</button>
       </div>
-      <button class="fab ghost" id="catFabBtn">＋ הוספת מתכון לקטגוריה</button>
+      <button class="fab ghost" id="catFabBtn">＋ הוספת מרשם לקטגוריה</button>
     </main>
   </div>
 
@@ -346,12 +346,12 @@ ol.steps li.current::before { background: var(--primary); }
     <header>
       <button class="back-btn" id="upBackBtn">← חזרה</button>
       <button class="back-btn" onclick="goHome()">🏠 בית</button>
-      <h1 id="uploadViewTitle">הוספת מתכון חדש</h1>
+      <h1 id="uploadViewTitle">הוספת מרשם חדש</h1>
     </header>
     <main>
       <div class="card">
         <div class="form-group">
-          <label for="upTitle">שם המתכון</label>
+          <label for="upTitle">שם המרשם</label>
           <input type="text" id="upTitle" placeholder="למשל: עוגיות שוקולד צ'יפס" />
         </div>
         <div class="form-group">
@@ -366,11 +366,11 @@ ol.steps li.current::before { background: var(--primary); }
             <input type="text" id="upUrl" placeholder="https://..." dir="ltr" style="flex:1;" />
             <button class="small ghost" id="upUrlOpenBtn" type="button">פתיחה ↗</button>
           </div>
-          <p class="hint">ניתן להדביק כתובת אתר של המתכון המקורי</p>
+          <p class="hint">ניתן להדביק כתובת אתר של המרשם המקורי</p>
         </div>
         <div class="form-group">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <label for="upText" style="margin-bottom:0;">טקסט המתכון</label>
+            <label for="upText" style="margin-bottom:0;">טקסט המרשם</label>
             <div style="display:flex;gap:6px;">
               <button class="small ghost" id="loadFileBtn" type="button">📂 קובץ</button>
               <button class="small ghost" id="ocrBtn" type="button">📷 זיהוי מתמונה</button>
@@ -378,12 +378,12 @@ ol.steps li.current::before { background: var(--primary); }
             <input type="file" id="fileInput" accept=".txt,.md,.text" style="display:none;" />
             <input type="file" id="imageInput" accept="image/*" capture="environment" style="display:none;" />
           </div>
-          <textarea id="upText" placeholder="הדביקי את המתכון כאן...&#10;&#10;מצרכים:&#10;...&#10;&#10;אופן ההכנה:&#10;..."></textarea>
+          <textarea id="upText" placeholder="הדביקי את המרשם כאן...&#10;&#10;מצרכים:&#10;...&#10;&#10;אופן ההכנה:&#10;..."></textarea>
           <div id="ocrStatus" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;background:#fff8f0;border:1px solid var(--border);font-size:.84em;color:var(--muted);text-align:center;"></div>
           <p class="hint">האתר יזהה אוטומטית מצרכים ושלבי הכנה לפי הכותרות</p>
         </div>
         <div class="upload-actions">
-          <button id="upSaveBtn">💾 שמירת המתכון</button>
+          <button id="upSaveBtn">💾 שמירת המרשם</button>
           <button class="ghost" id="upClearBtn">נקי</button>
         </div>
       </div>
@@ -408,7 +408,7 @@ ol.steps li.current::before { background: var(--primary); }
     <main>
       <div class="card">
         <div class="reading-bar">
-          <button id="readAllBtn">🔊 הקראת המתכון</button>
+          <button id="readAllBtn">🔊 הקראת המרשם</button>
           <button id="continueBtn" disabled>⏭ המשך</button>
           <button class="ghost" id="stopBtn">⏹ עצור</button>
           <span class="status" id="readStatus">מוכן להקראה</span>
@@ -434,7 +434,7 @@ ol.steps li.current::before { background: var(--primary); }
       <div id="recSourceWrap" class="hidden" style="padding:0 2px 6px;">
         <a id="recSourceLink" href="#" target="_blank" rel="noopener"
           style="display:inline-flex;align-items:center;gap:5px;color:var(--primary);font-size:.87em;font-weight:600;text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 13px;background:var(--card);">
-          🔗 פתיחת מקור המתכון
+          🔗 פתיחת מקור המרשם
         </a>
       </div>
       <div style="height:22px;"></div>
@@ -676,7 +676,7 @@ function renderHome() {
     div.className = 'cat-card';
     div.innerHTML = `<div class="cat-icon">${cat.icon}</div>
       <div class="cat-name">${cat.name}</div>
-      <div class="cat-count">${count} מתכון${count !== 1 ? 'ות' : ''}</div>`;
+      <div class="cat-count">${count} מרשם${count !== 1 ? 'ים' : ''}</div>`;
     div.addEventListener('click', () => openCategory(cat.id));
     catGrid.appendChild(div);
   });
@@ -785,7 +785,7 @@ function openForEdit(id) {
   const rec = loadRecipes().find(r => r.id === id);
   if (!rec) return;
   editingRecipeId = id;
-  document.getElementById('uploadViewTitle').textContent = 'עריכת מתכון';
+  document.getElementById('uploadViewTitle').textContent = 'עריכת מרשם';
   document.getElementById('upSaveBtn').textContent = '💾 שמירת שינויים';
   upTitle.value    = rec.title || '';
   upCategory.value = rec.category || 'auto';
@@ -795,8 +795,8 @@ function openForEdit(id) {
 }
 function resetUploadForm() {
   editingRecipeId = null;
-  document.getElementById('uploadViewTitle').textContent = 'הוספת מתכון חדש';
-  document.getElementById('upSaveBtn').textContent = '💾 שמירת המתכון';
+  document.getElementById('uploadViewTitle').textContent = 'הוספת מרשם חדש';
+  document.getElementById('upSaveBtn').textContent = '💾 שמירת המרשם';
   upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto';
 }
 document.getElementById('upBackBtn').addEventListener('click', () => {
@@ -893,9 +893,9 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
   const titleVal = upTitle.value.trim();
   const textVal  = upText.value.trim();
   const urlVal   = upUrl.value.trim();
-  if (!textVal) { alert('בבקשה הדביקי טקסט של מתכון'); return; }
+  if (!textVal) { alert('בבקשה הדביקי טקסט של מרשם'); return; }
   const parsed = parseRecipe(textVal);
-  const finalTitle = titleVal || parsed.title || 'מתכון חדש';
+  const finalTitle = titleVal || parsed.title || 'מרשם חדש';
   let cat = upCategory.value;
   if (cat === 'auto') cat = autoCategory(finalTitle, textVal);
   let recs = loadRecipes();
@@ -1110,7 +1110,7 @@ document.getElementById('editRecBtn').addEventListener('click', () => {
   openForEdit(currentRecId);
 });
 document.getElementById('deleteRecBtn').addEventListener('click', () => {
-  if (!confirm('למחוק את המתכון לצמיתות?')) return;
+  if (!confirm('למחוק את המרשם לצמיתות?')) return;
   saveRecipes(loadRecipes().filter(r => r.id !== currentRecId));
   if (synth) synth.cancel(); qActive = false; showContinue(false);
   const goTo = prevView === 'category' ? 'category' : 'home';
@@ -1147,7 +1147,7 @@ renderHome();
       if (e.name === 'QuotaExceededError') saveRecipes(recipes.slice(0, 600));
     }
     renderHome();
-    showToast(`✅ נטענו ${loadRecipes().length} מתכונים`, 3000);
+    showToast(`✅ נטענו ${loadRecipes().length} מרשמים`, 3000);
   } catch (e) {}
 })();
 
