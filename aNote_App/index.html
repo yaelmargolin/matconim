@@ -261,6 +261,20 @@ ol.steps li.current::before { background: var(--primary); }
 .font-controls { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 11px; }
 .font-controls span { font-size: .79em; color: var(--muted); }
 
+/* ── Recipe photo ── */
+.img-drop {
+  border: 2px dashed var(--border); border-radius: 12px;
+  padding: 22px 14px; text-align: center; cursor: pointer;
+  color: var(--muted); font-size: .87em;
+  transition: border-color .15s, background .15s; position: relative;
+}
+.img-drop:hover, .img-drop:focus { border-color: var(--primary); background: #f0f7ff; outline: none; }
+.img-drop.has-img { padding: 0; border-style: solid; border-color: var(--primary); }
+.img-drop.has-img .img-hint { display: none; }
+#imgPreview { width:100%; display:none; border-radius:10px; max-height:220px; object-fit:cover; }
+.has-img #imgPreview { display:block; }
+.rec-photo { width:100%; border-radius:12px; object-fit:cover; max-height:260px; display:block; margin-bottom:14px; }
+
 #floatContinue {
   position: fixed; bottom: 28px; left: 50%;
   transform: translateX(-50%);
@@ -369,6 +383,15 @@ ol.steps li.current::before { background: var(--primary); }
           <p class="hint">ניתן להדביק כתובת אתר של המרשם המקורי</p>
         </div>
         <div class="form-group">
+          <label>📸 תמונה (אופציונלי)</label>
+          <div class="img-drop" id="imgDropZone" tabindex="0">
+            <span class="img-hint">לחצי לבחירה, גרורי תמונה, או הדביקי ⌘V</span>
+            <img id="imgPreview" alt="תצוגה מקדימה">
+          </div>
+          <input type="file" id="recipePhotoInput" accept="image/*" style="display:none;">
+          <button class="small ghost" id="clearImgBtn" style="display:none;margin-top:6px;" type="button">✕ הסר תמונה</button>
+        </div>
+        <div class="form-group">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <label for="upText" style="margin-bottom:0;">טקסט המרשם</label>
             <div style="display:flex;gap:6px;">
@@ -413,6 +436,7 @@ ol.steps li.current::before { background: var(--primary); }
           <button class="ghost" id="stopBtn">⏹ עצור</button>
           <span class="status" id="readStatus">מוכן להקראה</span>
         </div>
+        <div id="recImgWrap" style="display:none;"><img id="recImg" class="rec-photo" alt="תמונת המרשם"></div>
         <h2 class="sec"><span>🥕</span> מצרכים</h2>
         <ul class="ingredients" id="ingredientsList"></ul>
         <h2 class="sec" style="margin-top:17px;"><span>👩‍🍳</span> אופן ההכנה</h2>
@@ -782,6 +806,55 @@ function reconstructText(rec) {
   if ((rec.steps || []).length) t += 'אופן ההכנה:\n' + rec.steps.map((s, i) => (i + 1) + '. ' + s).join('\n');
   return t.trim();
 }
+// ── Recipe photo ──────────────────────────────────────────────
+let currentImage = null;
+const imgDropZone      = document.getElementById('imgDropZone');
+const recipePhotoInput = document.getElementById('recipePhotoInput');
+const imgPreview       = document.getElementById('imgPreview');
+const clearImgBtn      = document.getElementById('clearImgBtn');
+
+function compressImage(file, cb) {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    let w = img.width, h = img.height;
+    const MAX = 1200;
+    if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    cb(c.toDataURL('image/jpeg', 0.82));
+  };
+  img.src = url;
+}
+function setRecipeImage(file) {
+  compressImage(file, b64 => {
+    currentImage = b64;
+    imgPreview.src = b64;
+    imgDropZone.classList.add('has-img');
+    clearImgBtn.style.display = '';
+  });
+}
+function clearRecipeImage() {
+  currentImage = null;
+  imgPreview.src = '';
+  imgDropZone.classList.remove('has-img');
+  clearImgBtn.style.display = 'none';
+}
+imgDropZone.addEventListener('click', () => recipePhotoInput.click());
+recipePhotoInput.addEventListener('change', () => {
+  const f = recipePhotoInput.files[0]; if (f) { setRecipeImage(f); recipePhotoInput.value = ''; }
+});
+clearImgBtn.addEventListener('click', clearRecipeImage);
+imgDropZone.addEventListener('dragover',  e => { e.preventDefault(); imgDropZone.style.borderColor = 'var(--primary)'; });
+imgDropZone.addEventListener('dragleave', () => { if (!currentImage) imgDropZone.style.borderColor = ''; });
+imgDropZone.addEventListener('drop', e => {
+  e.preventDefault(); imgDropZone.style.borderColor = '';
+  const f = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
+  if (f) setRecipeImage(f);
+});
+// ─────────────────────────────────────────────────────────────
+
 function openForEdit(id) {
   const rec = loadRecipes().find(r => r.id === id);
   if (!rec) return;
@@ -792,6 +865,8 @@ function openForEdit(id) {
   upCategory.value = rec.category || 'auto';
   upUrl.value      = rec.url || '';
   upText.value     = rec.text || reconstructText(rec);
+  if (rec.image) { currentImage = rec.image; imgPreview.src = rec.image; imgDropZone.classList.add('has-img'); clearImgBtn.style.display = ''; }
+  else clearRecipeImage();
   showView('upload');
 }
 function resetUploadForm() {
@@ -799,12 +874,13 @@ function resetUploadForm() {
   document.getElementById('uploadViewTitle').textContent = 'הוספת מרשם חדש';
   document.getElementById('upSaveBtn').textContent = '💾 שמירת המרשם';
   upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto';
+  clearRecipeImage();
 }
 document.getElementById('upBackBtn').addEventListener('click', () => {
   const dest = editingRecipeId ? 'recipe' : (prevView === 'category' ? 'category' : 'home');
   resetUploadForm(); showView(dest);
 });
-document.getElementById('upClearBtn').addEventListener('click', () => { upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto'; });
+document.getElementById('upClearBtn').addEventListener('click', () => { upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto'; clearRecipeImage(); });
 
 const fileInput  = document.getElementById('fileInput');
 document.getElementById('loadFileBtn').addEventListener('click', () => fileInput.click());
@@ -887,7 +963,10 @@ document.addEventListener('paste', (e) => {
   if (!imageItem) return;
   e.preventDefault();
   const file = imageItem.getAsFile();
-  if (file) runOCR(file);
+  if (!file) return;
+  // If focused on textarea → OCR; otherwise → recipe photo
+  if (document.activeElement === upText) runOCR(file);
+  else setRecipeImage(file);
 });
 
 document.getElementById('upSaveBtn').addEventListener('click', () => {
@@ -902,7 +981,7 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
   let recs = loadRecipes();
   if (editingRecipeId) {
     recs = recs.map(r => r.id === editingRecipeId
-      ? { ...r, title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal }
+      ? { ...r, title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, image: currentImage || r.image || undefined }
       : r);
     saveRecipes(recs);
     const updatedId = editingRecipeId;
@@ -910,7 +989,7 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
     prevView = currentCatId ? 'category' : 'home';
     openRecipe(updatedId);
   } else {
-    const recipe = { id: Date.now(), title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, createdAt: Date.now() };
+    const recipe = { id: Date.now(), title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, image: currentImage || undefined, createdAt: Date.now() };
     recs.push(recipe); saveRecipes(recs);
     resetUploadForm(); openCategory(cat);
   }
@@ -1059,7 +1138,7 @@ function openRecipe(id) {
     }
   }
   steps = splitStepsOnPeriod(steps);
-  recState = { title: rec.title, ingredients, steps, notes: rec.notes || '', currentStep: -1 };
+  recState = { title: rec.title, ingredients, steps, notes: rec.notes || '', image: rec.image || null, currentStep: -1 };
   recViewTitle.textContent = rec.title;
   const srcWrap = document.getElementById('recSourceWrap');
   const srcLink = document.getElementById('recSourceLink');
@@ -1070,6 +1149,10 @@ function openRecipe(id) {
 }
 
 function renderRecipeView() {
+  const recImgWrap = document.getElementById('recImgWrap');
+  const recImg     = document.getElementById('recImg');
+  if (recState.image) { recImg.src = recState.image; recImgWrap.style.display = ''; }
+  else recImgWrap.style.display = 'none';
   const recNotesEl = document.getElementById('recNotes');
   if (recState.notes) {
     recNotesEl.textContent = recState.notes;
