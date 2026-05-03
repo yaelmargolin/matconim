@@ -521,22 +521,20 @@ const KW = {
   desserts: ['קינוח','גלידה','מוס','פנקוטה','טירמיסו','קרם ברולה','פאי','פודינג','סורבה','קרפ','וופל','פרפה','חלבה','מוצ\'י','טרופל','פרלין','שוקולד פונדו'],
 };
 
-const KEY = 'matkonim_v14';
-localStorage.removeItem('matkonim_v1');
-localStorage.removeItem('matkonim_v2');
-localStorage.removeItem('matkonim_v3');
-localStorage.removeItem('matkonim_v4');
-localStorage.removeItem('matkonim_v5');
-localStorage.removeItem('matkonim_v6');
-localStorage.removeItem('matkonim_v7');
-localStorage.removeItem('matkonim_v8');
-localStorage.removeItem('matkonim_v9');
-localStorage.removeItem('matkonim_v10');
-localStorage.removeItem('matkonim_v11');
-localStorage.removeItem('matkonim_v12');
-localStorage.removeItem('matkonim_v13');
-function loadRecipes() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e) { return []; } }
-function saveRecipes(arr) { try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch(e) {} }
+// ── In-memory store (backed by Neon DB via API) ───────────────────────────
+window.__recipes = [];
+function loadRecipes() { return window.__recipes; }
+function saveRecipes(arr) { window.__recipes = arr; }
+
+async function apiCall(method, path, body) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    if (!r.ok) throw new Error(await r.text());
+    return await r.json();
+  } catch (e) { console.error('API error', method, path, e); return null; }
+}
 
 function autoCategory(title, text) {
   const t = title.toLowerCase();
@@ -982,10 +980,10 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
   if (cat === 'auto') cat = autoCategory(finalTitle, textVal);
   let recs = loadRecipes();
   if (editingRecipeId) {
-    recs = recs.map(r => r.id === editingRecipeId
-      ? { ...r, title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, image: currentImage || r.image || undefined }
-      : r);
+    const updated = { ...recs.find(r => r.id === editingRecipeId), title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, image: currentImage || recs.find(r => r.id === editingRecipeId)?.image || undefined };
+    recs = recs.map(r => r.id === editingRecipeId ? updated : r);
     saveRecipes(recs);
+    apiCall('PUT', `/api/recipe/${editingRecipeId}`, updated);
     const updatedId = editingRecipeId;
     resetUploadForm();
     prevView = currentCatId ? 'category' : 'home';
@@ -993,6 +991,7 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
   } else {
     const recipe = { id: Date.now(), title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, image: currentImage || undefined, createdAt: Date.now() };
     recs.push(recipe); saveRecipes(recs);
+    apiCall('POST', '/api/recipes', recipe);
     resetUploadForm(); openCategory(cat);
   }
 });
@@ -1135,8 +1134,10 @@ function openRecipe(id) {
     if (rp.ingredients.length) ingredients = rp.ingredients;
     if (rp.steps.length) steps = rp.steps;
     if (rp.ingredients.length || rp.steps.length) {
-      const all = loadRecipes().map(r => r.id === id ? { ...r, ingredients, steps } : r);
+      const updated = { ...rec, ingredients, steps };
+      const all = loadRecipes().map(r => r.id === id ? updated : r);
       saveRecipes(all);
+      apiCall('PUT', `/api/recipe/${id}`, updated);
     }
   }
   steps = splitStepsOnPeriod(steps);
@@ -1198,6 +1199,7 @@ document.getElementById('editRecBtn').addEventListener('click', () => {
 document.getElementById('deleteRecBtn').addEventListener('click', () => {
   if (!confirm('למחוק את המרשם לצמיתות?')) return;
   saveRecipes(loadRecipes().filter(r => r.id !== currentRecId));
+  apiCall('DELETE', `/api/recipe/${currentRecId}`);
   if (synth) synth.cancel(); qActive = false; showContinue(false);
   const goTo = prevView === 'category' ? 'category' : 'home';
   showView(goTo);
@@ -1222,18 +1224,25 @@ window.goHome = goHome;
 
 renderHome();
 
-// Load pre-built recipes on first visit
+// Load recipes from Neon DB (falls back to JSON if API unavailable)
 (async () => {
-  if (loadRecipes().length > 0) return;
+  try {
+    const data = await apiCall('GET', '/api/recipes');
+    if (data && data.length > 0) {
+      saveRecipes(data);
+      renderHome();
+      showToast(`✅ נטענו ${data.length} מרשמים`, 3000);
+      return;
+    }
+  } catch (e) {}
+  // Fallback: load from local JSON
   try {
     const r = await fetch('./recipes-data.json');
     if (!r.ok) return;
     const recipes = await r.json();
-    try { saveRecipes(recipes); } catch (e) {
-      if (e.name === 'QuotaExceededError') saveRecipes(recipes.slice(0, 600));
-    }
+    saveRecipes(recipes);
     renderHome();
-    showToast(`✅ נטענו ${loadRecipes().length} מרשמים`, 3000);
+    showToast(`✅ נטענו ${recipes.length} מרשמים`, 3000);
   } catch (e) {}
 })();
 
