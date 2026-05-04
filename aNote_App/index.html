@@ -1280,46 +1280,48 @@ renderHome();
 <script>
 (async () => {
   try {
-    // Fetch publishable key from server (keeps it out of the static HTML)
+    // Get publishable key from server
     const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
     const publishableKey = cfg.publishableKey;
-    if (!publishableKey) return; // no Clerk configured — skip auth
+    if (!publishableKey) return;
 
-    // Load Clerk JS dynamically
+    // Derive the Clerk frontend API domain from the publishable key
+    // Format: pk_[test|live]_[base64(frontendApi + '$')]
+    const base64Part = publishableKey.split('_')[2] || '';
+    const pad = (4 - base64Part.length % 4) % 4;
+    const frontendApi = atob(base64Part + '='.repeat(pad)).replace(/\$$/, '');
+
+    // Load Clerk JS from Clerk's own CDN (required for correct initialization)
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
-      s.crossOrigin = 'anonymous';
+      s.src = `https://${frontendApi}/npm/@clerk/clerk-js@latest/dist/clerk.browser.js`;
+      s.setAttribute('data-clerk-publishable-key', publishableKey);
+      s.async = true;
       s.onload = resolve;
       s.onerror = reject;
       document.head.appendChild(s);
     });
 
-    const clerk = new window.Clerk(publishableKey);
-    await clerk.load();
+    // Clerk v5+: window.Clerk is a singleton instance, not a constructor
+    await window.Clerk.load();
 
     async function refreshToken() {
-      try { window.__clerkToken = await clerk.session?.getToken() || null; }
+      try { window.__clerkToken = await window.Clerk.session?.getToken() || null; }
       catch { window.__clerkToken = null; }
     }
 
-    if (!clerk.user) {
+    if (!window.Clerk.user) {
       // Show sign-in wall
-      const wall = document.getElementById('auth-wall');
-      wall.style.display = 'flex';
-      clerk.mountSignIn(document.getElementById('clerk-sign-in'), {
-        afterSignInUrl: window.location.href,
-        afterSignUpUrl: window.location.href,
-      });
+      document.getElementById('auth-wall').style.display = 'flex';
+      window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'));
     } else {
-      // Signed in — mount user button and refresh token
+      // Already signed in — show user button and cache token
       await refreshToken();
-      clerk.mountUserButton(document.getElementById('clerk-user-button'));
-      // Keep token fresh (Clerk tokens expire after 60s)
+      window.Clerk.mountUserButton(document.getElementById('clerk-user-button'));
       setInterval(refreshToken, 50000);
     }
   } catch (e) {
-    console.warn('Clerk init failed, running without auth:', e);
+    console.warn('Clerk init failed:', e);
   }
 })();
 </script>
