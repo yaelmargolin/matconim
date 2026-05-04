@@ -310,9 +310,19 @@ ol.steps li.current::before { background: var(--primary); }
 </head>
 <body>
 
+<!-- ── Clerk auth overlay (hidden once signed in) ── -->
+<div id="auth-wall" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);
+  flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="font-size:2.4em;">🍲</div>
+  <h1 style="font-size:1.4em;color:var(--primary);margin:0;">מרשמים</h1>
+  <p style="color:var(--muted);font-size:.9em;margin:0;">כניסה נדרשת</p>
+  <div id="clerk-sign-in"></div>
+</div>
+
 <!-- Header bar -->
 <div id="tab-bar">
   <span class="app-title">🍲 מרשמים</span>
+  <div id="clerk-user-button" style="margin-right:4px;"></div>
 </div>
 
 <!-- ══════════════════════ RECIPES SECTION ══════════════════════ -->
@@ -534,6 +544,10 @@ async function apiCall(method, path, body) {
   try {
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
+    // Attach Clerk auth token for write requests
+    if (window.__clerkToken && method !== 'GET') {
+      opts.headers['Authorization'] = 'Bearer ' + window.__clerkToken;
+    }
     const r = await fetch(path, opts);
     if (!r.ok) throw new Error(await r.text());
     return await r.json();
@@ -1260,6 +1274,54 @@ renderHome();
 
 })(); // end recipes IIFE
 
+</script>
+
+<!-- ── Clerk authentication ── -->
+<script>
+(async () => {
+  try {
+    // Fetch publishable key from server (keeps it out of the static HTML)
+    const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+    const publishableKey = cfg.publishableKey;
+    if (!publishableKey) return; // no Clerk configured — skip auth
+
+    // Load Clerk JS dynamically
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+      s.crossOrigin = 'anonymous';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+
+    const clerk = new window.Clerk(publishableKey);
+    await clerk.load();
+
+    async function refreshToken() {
+      try { window.__clerkToken = await clerk.session?.getToken() || null; }
+      catch { window.__clerkToken = null; }
+    }
+
+    if (!clerk.user) {
+      // Show sign-in wall
+      const wall = document.getElementById('auth-wall');
+      wall.style.display = 'flex';
+      clerk.mountSignIn(document.getElementById('clerk-sign-in'), {
+        afterSignInUrl: window.location.href,
+        afterSignUpUrl: window.location.href,
+      });
+    } else {
+      // Signed in — mount user button and refresh token
+      await refreshToken();
+      clerk.mountUserButton(document.getElementById('clerk-user-button'));
+      // Keep token fresh (Clerk tokens expire after 60s)
+      setInterval(refreshToken, 50000);
+    }
+  } catch (e) {
+    console.warn('Clerk init failed, running without auth:', e);
+  }
+})();
 </script>
 </body>
 </html>

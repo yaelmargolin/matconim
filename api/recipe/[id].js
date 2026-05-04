@@ -1,4 +1,5 @@
 const { getSQL, ensureTable, rowToRecipe, setCORS } = require('../_db');
+const { requireAuth } = require('../_auth');
 
 module.exports = async function handler(req, res) {
   setCORS(res);
@@ -13,6 +14,7 @@ module.exports = async function handler(req, res) {
 
     // ── PUT update recipe ────────────────────────────────────────────────────
     if (req.method === 'PUT') {
+      if (!await requireAuth(req, res)) return;
       const r = req.body;
       const rows = await sql`
         UPDATE recipes SET
@@ -33,6 +35,7 @@ module.exports = async function handler(req, res) {
 
     // ── DELETE recipe ────────────────────────────────────────────────────────
     if (req.method === 'DELETE') {
+      if (!await requireAuth(req, res)) return;
       await sql`DELETE FROM recipes WHERE id = ${id}`;
       return res.status(200).json({ ok: true });
     }

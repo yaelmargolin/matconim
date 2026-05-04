@@ -1,4 +1,5 @@
 const { getSQL, ensureTable, rowToRecipe, setCORS } = require('./_db');
+const { requireAuth } = require('./_auth');
 
 module.exports = async function handler(req, res) {
   setCORS(res);
@@ -16,6 +17,7 @@ module.exports = async function handler(req, res) {
 
     // ── POST create recipe ───────────────────────────────────────────────────
     if (req.method === 'POST') {
+      if (!await requireAuth(req, res)) return;
       const r = req.body;
       if (!r || !r.id) return res.status(400).json({ error: 'missing id' });
       const rows = await sql`
