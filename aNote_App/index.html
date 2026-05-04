@@ -448,6 +448,10 @@ ol.steps li.current::before { background: var(--primary); }
         </div>
         <ol class="steps" id="stepsList"></ol>
         <div id="recNotes" class="hidden" style="background:var(--bg-alt);border-radius:10px;padding:11px 14px;margin-top:14px;font-size:.95em;line-height:1.7;white-space:pre-wrap;color:var(--text);"></div>
+        <div id="recRawText" class="hidden" style="margin-top:18px;padding-top:14px;border-top:1.5px solid var(--border);">
+          <h3 style="font-size:.85em;color:var(--muted);margin:0 0 8px;font-weight:600;">📄 הטקסט המקורי</h3>
+          <div id="recRawTextContent" style="font-size:.88em;line-height:1.75;white-space:pre-wrap;color:var(--text-secondary, #475569);direction:rtl;"></div>
+        </div>
         <div class="font-controls">
           <span>גודל טקסט:</span>
           <button class="small ghost" id="fontMinus">א-</button>
@@ -1141,7 +1145,7 @@ function openRecipe(id) {
     }
   }
   steps = splitStepsOnPeriod(steps);
-  recState = { title: rec.title, ingredients, steps, notes: rec.notes || '', image: rec.image || null, currentStep: -1 };
+  recState = { title: rec.title, ingredients, steps, notes: rec.notes || '', text: rec.text || '', image: rec.image || null, currentStep: -1 };
   recViewTitle.textContent = rec.title;
   const srcWrap = document.getElementById('recSourceWrap');
   const srcLink = document.getElementById('recSourceLink');
@@ -1162,6 +1166,14 @@ function renderRecipeView() {
     recNotesEl.classList.remove('hidden');
   } else {
     recNotesEl.classList.add('hidden');
+  }
+  const recRawWrap = document.getElementById('recRawText');
+  const recRawContent = document.getElementById('recRawTextContent');
+  if (recState.text) {
+    recRawContent.textContent = recState.text;
+    recRawWrap.classList.remove('hidden');
+  } else {
+    recRawWrap.classList.add('hidden');
   }
   ingredientsList.innerHTML = '';
   recState.ingredients.forEach((ing, idx) => {
