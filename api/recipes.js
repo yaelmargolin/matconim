@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
 
     // ── GET all recipes ──────────────────────────────────────────────────────
     if (req.method === 'GET') {
-      const rows = await sql`SELECT * FROM recipes ORDER BY created_at ASC NULLS LAST`;
+      const rows = await sql`SELECT * FROM recipes ORDER BY title ASC`;
       return res.status(200).json(rows.map(rowToRecipe));
     }
 
