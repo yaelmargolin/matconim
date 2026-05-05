@@ -1175,10 +1175,11 @@ function openRecipe(id) {
   if (rec.url) { srcLink.href = rec.url; srcWrap.classList.remove('hidden'); }
   else srcWrap.classList.add('hidden');
 
-  // Show edit/delete only for recipes owned by the current user
+  // Show edit/delete if user owns the recipe OR is admin
   const isOwner = rec.ownerId && rec.ownerId === window.__clerkUserId;
-  document.getElementById('editRecBtn').style.display   = isOwner ? '' : 'none';
-  document.getElementById('deleteRecBtn').style.display = isOwner ? '' : 'none';
+  const canEdit = window.__isAdmin || isOwner;
+  document.getElementById('editRecBtn').style.display   = canEdit ? '' : 'none';
+  document.getElementById('deleteRecBtn').style.display = canEdit ? '' : 'none';
 
   renderRecipeView();
   showView('recipe');
@@ -1338,6 +1339,7 @@ renderHome();
       const email = user?.primaryEmailAddress?.emailAddress || '';
       const name  = user?.fullName || '';
       window.__clerkUserId = user?.id || null;
+      window.__isAdmin = (email === 'yaelmar52@gmail.com');
 
       const resp = await fetch('/api/user/status', {
         method: 'POST',

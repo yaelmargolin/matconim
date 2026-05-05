@@ -1,6 +1,8 @@
 const { getSQL, ensureTable, rowToRecipe, setCORS } = require('../_db');
 const { getAuthUserId } = require('../_auth');
 
+const ADMIN_EMAIL = 'yaelmar52@gmail.com';
+
 module.exports = async function handler(req, res) {
   setCORS(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -17,10 +19,12 @@ module.exports = async function handler(req, res) {
       const userId = getAuthUserId(req);
       if (!userId) return res.status(401).json({ error: 'unauthorized' });
 
-      // Only the recipe owner can edit (owner_id = NULL means original/protected)
+      // Admin can edit anything; others can only edit their own recipes
       const check = await sql`SELECT owner_id FROM recipes WHERE id = ${id}`;
       if (!check.length) return res.status(404).json({ error: 'not found' });
-      if (check[0].owner_id !== userId)
+      const userRow = await sql`SELECT email FROM users WHERE clerk_id = ${userId}`;
+      const isAdmin = userRow[0]?.email === ADMIN_EMAIL;
+      if (!isAdmin && check[0].owner_id !== userId)
         return res.status(403).json({ error: 'forbidden' });
 
       const r = req.body;
@@ -47,7 +51,9 @@ module.exports = async function handler(req, res) {
 
       const check = await sql`SELECT owner_id FROM recipes WHERE id = ${id}`;
       if (!check.length) return res.status(404).json({ error: 'not found' });
-      if (check[0].owner_id !== userId)
+      const userRow = await sql`SELECT email FROM users WHERE clerk_id = ${userId}`;
+      const isAdmin = userRow[0]?.email === ADMIN_EMAIL;
+      if (!isAdmin && check[0].owner_id !== userId)
         return res.status(403).json({ error: 'forbidden' });
 
       await sql`DELETE FROM recipes WHERE id = ${id}`;
