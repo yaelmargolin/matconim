@@ -1,4 +1,5 @@
 const { getSQL, ensureTable, rowToRecipe, setCORS } = require('./_db');
+const { getAuthUserId } = require('./_auth');
 
 module.exports = async function handler(req, res) {
   setCORS(res);
@@ -16,10 +17,13 @@ module.exports = async function handler(req, res) {
 
     // ── POST create recipe ───────────────────────────────────────────────────
     if (req.method === 'POST') {
+      const userId = getAuthUserId(req);
+      if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
       const r = req.body;
       if (!r || !r.id) return res.status(400).json({ error: 'missing id' });
       const rows = await sql`
-        INSERT INTO recipes (id, title, category, ingredients, steps, notes, url, image, text_raw, created_at)
+        INSERT INTO recipes (id, title, category, ingredients, steps, notes, url, image, text_raw, created_at, owner_id)
         VALUES (
           ${r.id},
           ${r.title || ''},
@@ -30,7 +34,8 @@ module.exports = async function handler(req, res) {
           ${r.url || ''},
           ${r.image || null},
           ${r.text || ''},
-          ${r.createdAt || r.id}
+          ${r.createdAt || r.id},
+          ${userId}
         )
         ON CONFLICT (id) DO UPDATE SET
           title       = EXCLUDED.title,

@@ -1174,6 +1174,12 @@ function openRecipe(id) {
   const srcLink = document.getElementById('recSourceLink');
   if (rec.url) { srcLink.href = rec.url; srcWrap.classList.remove('hidden'); }
   else srcWrap.classList.add('hidden');
+
+  // Show edit/delete only for recipes owned by the current user
+  const isOwner = rec.ownerId && rec.ownerId === window.__clerkUserId;
+  document.getElementById('editRecBtn').style.display   = isOwner ? '' : 'none';
+  document.getElementById('deleteRecBtn').style.display = isOwner ? '' : 'none';
+
   renderRecipeView();
   showView('recipe');
 }
@@ -1331,6 +1337,7 @@ renderHome();
       const user = window.Clerk.user;
       const email = user?.primaryEmailAddress?.emailAddress || '';
       const name  = user?.fullName || '';
+      window.__clerkUserId = user?.id || null;
 
       const resp = await fetch('/api/user/status', {
         method: 'POST',

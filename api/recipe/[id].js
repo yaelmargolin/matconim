@@ -1,4 +1,5 @@
 const { getSQL, ensureTable, rowToRecipe, setCORS } = require('../_db');
+const { getAuthUserId } = require('../_auth');
 
 module.exports = async function handler(req, res) {
   setCORS(res);
@@ -13,6 +14,15 @@ module.exports = async function handler(req, res) {
 
     // ── PUT update recipe ────────────────────────────────────────────────────
     if (req.method === 'PUT') {
+      const userId = getAuthUserId(req);
+      if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
+      // Only the recipe owner can edit (owner_id = NULL means original/protected)
+      const check = await sql`SELECT owner_id FROM recipes WHERE id = ${id}`;
+      if (!check.length) return res.status(404).json({ error: 'not found' });
+      if (check[0].owner_id !== userId)
+        return res.status(403).json({ error: 'forbidden' });
+
       const r = req.body;
       const rows = await sql`
         UPDATE recipes SET
@@ -27,12 +37,19 @@ module.exports = async function handler(req, res) {
         WHERE id = ${id}
         RETURNING *
       `;
-      if (!rows.length) return res.status(404).json({ error: 'not found' });
       return res.status(200).json(rowToRecipe(rows[0]));
     }
 
     // ── DELETE recipe ────────────────────────────────────────────────────────
     if (req.method === 'DELETE') {
+      const userId = getAuthUserId(req);
+      if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
+      const check = await sql`SELECT owner_id FROM recipes WHERE id = ${id}`;
+      if (!check.length) return res.status(404).json({ error: 'not found' });
+      if (check[0].owner_id !== userId)
+        return res.status(403).json({ error: 'forbidden' });
+
       await sql`DELETE FROM recipes WHERE id = ${id}`;
       return res.status(200).json({ ok: true });
     }

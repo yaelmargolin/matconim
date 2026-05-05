@@ -19,9 +19,11 @@ async function ensureTable() {
       url         TEXT             DEFAULT '',
       image       TEXT             DEFAULT '',
       text_raw    TEXT             DEFAULT '',
-      created_at  BIGINT
+      created_at  BIGINT,
+      owner_id    TEXT
     )
   `;
+  await sql`ALTER TABLE recipes ADD COLUMN IF NOT EXISTS owner_id TEXT`;
 }
 
 function rowToRecipe(r) {
@@ -36,6 +38,7 @@ function rowToRecipe(r) {
     image:       r.image       || undefined,
     text:        r.text_raw    || '',
     createdAt:   Number(r.created_at || r.id),
+    ownerId:     r.owner_id    || null,
   };
 }
 
