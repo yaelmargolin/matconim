@@ -1319,16 +1319,11 @@ renderHome();
       catch { window.__clerkToken = null; }
     }
 
-    if (!window.Clerk.user) {
-      // Not signed in — show sign-in wall
-      document.getElementById('auth-wall').style.display = 'flex';
-      window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'));
-    } else {
-      // Signed in — check/register user status
+    async function handleSignedIn() {
       await refreshToken();
       const user = window.Clerk.user;
-      const email = user.primaryEmailAddress?.emailAddress || '';
-      const name  = user.fullName || '';
+      const email = user?.primaryEmailAddress?.emailAddress || '';
+      const name  = user?.fullName || '';
 
       const resp = await fetch('/api/user/status', {
         method: 'POST',
@@ -1340,20 +1335,38 @@ renderHome();
       }).then(r => r.json()).catch(() => ({ status: 'approved' }));
 
       if (resp.status === 'approved') {
-        // Full access — mount user button and let app run
+        document.getElementById('auth-wall').style.display = 'none';
         window.Clerk.mountUserButton(document.getElementById('clerk-user-button'));
         setInterval(refreshToken, 50000);
       } else if (resp.status === 'rejected') {
-        // Rejected — show wall with rejection message
         document.getElementById('auth-wall').style.display = 'flex';
+        document.getElementById('clerk-sign-in').style.display = 'none';
         document.getElementById('pending-msg').style.display = 'block';
         document.getElementById('pending-msg').querySelector('h2').textContent = 'הגישה שלך נדחתה';
         document.getElementById('pending-msg').querySelector('p').textContent = 'צור קשר עם מנהל האפליקציה.';
       } else {
-        // Pending — show waiting screen
+        // pending
         document.getElementById('auth-wall').style.display = 'flex';
+        document.getElementById('clerk-sign-in').style.display = 'none';
         document.getElementById('pending-msg').style.display = 'block';
       }
+    }
+
+    if (window.Clerk.user) {
+      // Already signed in (e.g. returning visit or post-OAuth redirect)
+      await handleSignedIn();
+    } else {
+      // Not signed in — show wall and listen for sign-in event
+      document.getElementById('auth-wall').style.display = 'flex';
+      window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'));
+
+      // This fires when the user completes sign-in (including Google OAuth)
+      window.Clerk.addListener(async ({ user }) => {
+        if (user && !window.__authHandled) {
+          window.__authHandled = true;
+          await handleSignedIn();
+        }
+      });
     }
   } catch (e) {
     console.warn('Clerk init failed:', e);
