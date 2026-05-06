@@ -378,7 +378,7 @@ ol.steps li.current::before { background: var(--primary); }
     <main>
       <div class="card search-wrap">
         <div class="search-row">
-          <input type="text" id="searchInput" placeholder="🔍 חיפוש מרשם בכל הקטגוריות..." />
+          <input type="text" id="searchInput" placeholder="🔍 חיפוש מרשם... או * לחיפוש לפי דירוג" />
           <button id="clearSearchBtn">× נקה</button>
         </div>
         <div id="searchResults" class="search-results hidden"></div>
@@ -818,14 +818,32 @@ searchInput.addEventListener('input', () => {
   const q = searchInput.value.trim();
   clearSearchBtn.style.display = q ? 'block' : 'none';
   if (!q) { searchResults.classList.add('hidden'); searchResults.innerHTML = ''; return; }
-  const hits = loadRecipes().filter(r =>
-    r.title.includes(q) ||
-    (r.ingredients || []).some(i => i.includes(q)) ||
-    (r.text || '').includes(q)
-  );
+
+  // * search: * = 1+, ** = 2+, *** = 3+, **** = 4+, ***** = 5 exactly
+  const starMatch = /^\*{1,5}$/.test(q);
+  let hits;
+  if (starMatch) {
+    const minRating = q.length;
+    const exact = minRating === 5;
+    hits = loadRecipes()
+      .filter(r => exact ? r.rating === 5 : r.rating >= minRating)
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  } else {
+    hits = loadRecipes().filter(r =>
+      r.title.includes(q) ||
+      (r.ingredients || []).some(i => i.includes(q)) ||
+      (r.text || '').includes(q)
+    );
+  }
+
   searchResults.innerHTML = '';
+  if (starMatch) {
+    const minRating = q.length;
+    const label = minRating === 5 ? '★★★★★ בלבד' : `${'★'.repeat(minRating)}${'☆'.repeat(5 - minRating)} ומעלה`;
+    searchResults.innerHTML = `<div class="search-empty" style="color:var(--primary);font-weight:600;">🔍 חיפוש דירוג: ${label}</div>`;
+  }
   if (!hits.length) {
-    searchResults.innerHTML = '<div class="search-empty">לא נמצאו תוצאות</div>';
+    searchResults.innerHTML += '<div class="search-empty">לא נמצאו מתכונים מדורגים</div>';
   } else {
     hits.forEach(r => {
       const cat = CATS.find(c => c.id === r.category);
