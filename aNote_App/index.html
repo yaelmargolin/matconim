@@ -264,6 +264,35 @@ ol.steps li.current::before { background: var(--primary); }
 .font-controls { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 11px; }
 .font-controls span { font-size: .79em; color: var(--muted); }
 
+/* ── Star rating ── */
+.stars-display { display: inline-flex; gap: 1px; font-size: 1em; line-height: 1; }
+.ri-title .stars-display { font-size: .88em; margin-right: 6px; }
+.si-title .stars-display  { font-size: .85em; margin-right: 5px; }
+.rec-stars-wrap { display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; }
+.rec-stars-display { font-size: 1.35em; letter-spacing: 2px; }
+.rec-stars-edit { display: inline-flex; gap: 4px; }
+.rec-stars-edit button {
+  background: none; border: none; padding: 2px; font-size: 1.5em;
+  cursor: pointer; color: rgba(255,255,255,.45); line-height: 1; transition: color .1s;
+}
+.rec-stars-edit button.filled { color: #fbbf24; }
+.rec-stars-edit button:hover  { color: #fbbf24; }
+.rec-stars-label { font-size: .82em; color: rgba(255,255,255,.8); }
+
+/* ── Rating filter bar ── */
+.rating-filter-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 9px 13px 6px; font-size: .83em;
+}
+.rating-filter-bar span { color: var(--muted); font-weight: 600; flex-shrink: 0; }
+.rf-btn {
+  background: var(--card); border: 1.5px solid var(--border); color: var(--text);
+  border-radius: 999px; padding: 4px 11px; font-size: .82em; cursor: pointer;
+  font-family: inherit; transition: background .12s, border-color .12s;
+}
+.rf-btn:hover { border-color: var(--accent); }
+.rf-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
 /* ── Recipe photo ── */
 .img-drop {
   border: 2px dashed var(--border); border-radius: 12px;
@@ -367,6 +396,15 @@ ol.steps li.current::before { background: var(--primary); }
       <h1 id="catViewTitle">קטגוריה</h1>
     </header>
     <main>
+      <div class="rating-filter-bar" id="ratingFilterBar">
+        <span>סינון:</span>
+        <button class="rf-btn active" data-r="0">הכל</button>
+        <button class="rf-btn" data-r="5">★★★★★</button>
+        <button class="rf-btn" data-r="4">★★★★+</button>
+        <button class="rf-btn" data-r="3">★★★+</button>
+        <button class="rf-btn" data-r="2">★★+</button>
+        <button class="rf-btn" data-r="1">★+</button>
+      </div>
       <div id="recipeList"></div>
       <div id="catEmpty" class="empty-state hidden">
         <div class="empty-icon">🍽️</div>
@@ -449,6 +487,17 @@ ol.steps li.current::before { background: var(--primary); }
         </div>
       </div>
       <h1 id="recViewTitle" style="font-size:1.06em;margin-top:5px;"></h1>
+      <div class="rec-stars-wrap" id="recStarsWrap">
+        <div class="rec-stars-display" id="recStarsDisplay"></div>
+        <div class="rec-stars-edit" id="recStarsEdit" style="display:none;">
+          <button data-v="1">★</button>
+          <button data-v="2">★</button>
+          <button data-v="3">★</button>
+          <button data-v="4">★</button>
+          <button data-v="5">★</button>
+        </div>
+        <span class="rec-stars-label" id="recStarsLabel"></span>
+      </div>
     </header>
     <main>
       <div class="card">
@@ -552,6 +601,24 @@ const KW = {
 window.__recipes = [];
 function loadRecipes() { return window.__recipes; }
 function saveRecipes(arr) { window.__recipes = arr; }
+
+// ── Star rating helpers ────────────────────────────────────────────────────
+function starsHtml(n) {
+  if (!n) return '';
+  let s = '';
+  for (let i = 1; i <= 5; i++) s += i <= n ? '★' : '☆';
+  return `<span class="stars-display" style="color:${n ? '#f59e0b' : ''}">${s}</span>`;
+}
+
+let ratingFilter = 0;  // 0 = all, 1-5 = minimum stars
+
+document.getElementById('ratingFilterBar').addEventListener('click', e => {
+  const btn = e.target.closest('.rf-btn');
+  if (!btn) return;
+  ratingFilter = Number(btn.dataset.r);
+  document.querySelectorAll('.rf-btn').forEach(b => b.classList.toggle('active', b === btn));
+  if (currentCatId) renderCategoryList(currentCatId);
+});
 
 async function apiCall(method, path, body) {
   try {
@@ -764,7 +831,7 @@ searchInput.addEventListener('input', () => {
       const cat = CATS.find(c => c.id === r.category);
       const div = document.createElement('div');
       div.className = 'search-item';
-      div.innerHTML = `<div class="si-title">${r.title}</div>
+      div.innerHTML = `<div class="si-title">${r.title}${r.rating ? starsHtml(r.rating) : ''}</div>
         <div class="si-cat">${cat ? cat.icon + ' ' + cat.name : ''}</div>`;
       div.addEventListener('click', () => {
         searchInput.value = ''; searchResults.classList.add('hidden'); searchResults.innerHTML = '';
@@ -793,7 +860,8 @@ function openCategory(catId) {
   showView('category');
 }
 function renderCategoryList(catId) {
-  const recipes = loadRecipes().filter(r => r.category === catId);
+  let recipes = loadRecipes().filter(r => r.category === catId);
+  if (ratingFilter > 0) recipes = recipes.filter(r => r.rating >= ratingFilter);
   recipeList.innerHTML = '';
   if (!recipes.length) { catEmpty.classList.remove('hidden'); return; }
   catEmpty.classList.add('hidden');
@@ -803,7 +871,7 @@ function renderCategoryList(catId) {
     const date = new Date(r.createdAt).toLocaleDateString('he-IL');
     const ingCount = (r.ingredients || []).length;
     const contentTag = ingCount ? `${ingCount} מצרכים` : (r.notes || (r.steps||[]).length ? '📄 טקסט חופשי' : '—');
-    div.innerHTML = `<div class="ri-title">${r.title || 'ללא שם'}</div>
+    div.innerHTML = `<div class="ri-title">${r.title || 'ללא שם'}${r.rating ? starsHtml(r.rating) : ''}</div>
       <div class="ri-meta">${contentTag} &bull; ${date}</div>`;
     div.addEventListener('click', () => { prevView = 'category'; openRecipe(r.id); });
     recipeList.appendChild(div);
@@ -1267,9 +1335,75 @@ function openRecipe(id) {
   document.getElementById('editRecBtn').style.display   = canEdit ? '' : 'none';
   document.getElementById('deleteRecBtn').style.display = canEdit ? '' : 'none';
 
+  // Rating widget
+  renderRatingWidget(rec.rating, window.__isAdmin);
+
   renderRecipeView();
   showView('recipe');
 }
+
+function renderRatingWidget(rating, isAdmin) {
+  const display = document.getElementById('recStarsDisplay');
+  const edit    = document.getElementById('recStarsEdit');
+  const label   = document.getElementById('recStarsLabel');
+
+  if (isAdmin) {
+    display.style.display = 'none';
+    edit.style.display    = 'inline-flex';
+    const btns = edit.querySelectorAll('button');
+    btns.forEach(b => {
+      const v = Number(b.dataset.v);
+      b.classList.toggle('filled', rating && v <= rating);
+    });
+    label.textContent = rating ? `${rating}/5` : 'ללא דירוג';
+  } else {
+    edit.style.display = 'none';
+    if (rating) {
+      display.style.display = '';
+      display.textContent   = '';
+      for (let i = 1; i <= 5; i++) display.textContent += i <= rating ? '★' : '☆';
+      display.style.color   = '#f59e0b';
+      label.textContent     = `${rating}/5`;
+    } else {
+      display.style.display = 'none';
+      label.textContent     = '';
+    }
+  }
+}
+
+// Admin star hover preview
+document.getElementById('recStarsEdit').addEventListener('mouseover', e => {
+  const btn = e.target.closest('button[data-v]');
+  if (!btn) return;
+  const v = Number(btn.dataset.v);
+  document.querySelectorAll('#recStarsEdit button').forEach(b => {
+    b.style.color = Number(b.dataset.v) <= v ? '#f59e0b' : '#d1d5db';
+  });
+});
+document.getElementById('recStarsEdit').addEventListener('mouseleave', () => {
+  const rec = loadRecipes().find(r => r.id === currentRecId);
+  const rating = rec ? rec.rating : null;
+  document.querySelectorAll('#recStarsEdit button').forEach(b => {
+    b.style.color = '';
+    b.classList.toggle('filled', rating && Number(b.dataset.v) <= rating);
+  });
+});
+
+// Admin star clicks
+document.getElementById('recStarsEdit').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-v]');
+  if (!btn) return;
+  const newRating = Number(btn.dataset.v);
+  const rec = loadRecipes().find(r => r.id === currentRecId);
+  if (!rec) return;
+  const updated = { ...rec, rating: newRating };
+  const all = loadRecipes().map(r => r.id === currentRecId ? updated : r);
+  saveRecipes(all);
+  renderRatingWidget(newRating, true);
+  const res = await apiCall('PUT', `/api/recipe/${currentRecId}`, updated);
+  if (res) showToast(`דירוג נשמר: ${'★'.repeat(newRating)}`);
+  if (currentCatId) renderCategoryList(currentCatId);
+});
 
 function renderRecipeView() {
   const recImgWrap = document.getElementById('recImgWrap');

@@ -37,7 +37,8 @@ module.exports = async function handler(req, res) {
           notes       = ${r.notes || ''},
           url         = ${r.url || ''},
           image       = ${r.image || null},
-          text_raw    = ${r.text || ''}
+          text_raw    = ${r.text || ''},
+          rating      = ${r.rating != null ? Number(r.rating) : null}
         WHERE id = ${id}
         RETURNING *
       `;

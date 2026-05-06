@@ -24,6 +24,7 @@ async function ensureTable() {
     )
   `;
   await sql`ALTER TABLE recipes ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+  await sql`ALTER TABLE recipes ADD COLUMN IF NOT EXISTS rating SMALLINT`;
 }
 
 function rowToRecipe(r) {
@@ -39,6 +40,7 @@ function rowToRecipe(r) {
     text:        r.text_raw    || '',
     createdAt:   Number(r.created_at || r.id),
     ownerId:     r.owner_id    || null,
+    rating:      r.rating != null ? Number(r.rating) : null,
   };
 }
 

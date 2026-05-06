@@ -23,7 +23,7 @@ module.exports = async function handler(req, res) {
       const r = req.body;
       if (!r || !r.id) return res.status(400).json({ error: 'missing id' });
       const rows = await sql`
-        INSERT INTO recipes (id, title, category, ingredients, steps, notes, url, image, text_raw, created_at, owner_id)
+        INSERT INTO recipes (id, title, category, ingredients, steps, notes, url, image, text_raw, created_at, owner_id, rating)
         VALUES (
           ${r.id},
           ${r.title || ''},
@@ -35,7 +35,8 @@ module.exports = async function handler(req, res) {
           ${r.image || null},
           ${r.text || ''},
           ${r.createdAt || r.id},
-          ${userId}
+          ${userId},
+          ${r.rating != null ? Number(r.rating) : null}
         )
         ON CONFLICT (id) DO UPDATE SET
           title       = EXCLUDED.title,
@@ -45,7 +46,8 @@ module.exports = async function handler(req, res) {
           notes       = EXCLUDED.notes,
           url         = EXCLUDED.url,
           image       = EXCLUDED.image,
-          text_raw    = EXCLUDED.text_raw
+          text_raw    = EXCLUDED.text_raw,
+          rating      = EXCLUDED.rating
         RETURNING *
       `;
       return res.status(201).json(rowToRecipe(rows[0]));
