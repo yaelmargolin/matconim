@@ -237,6 +237,9 @@ ul.ingredients li.reading { background: #fff1e6; border-radius: 10px; outline: 2
 #continueBtn { background: var(--done); color: #fff; }
 #continueBtn:not(:disabled) { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(167,199,150,.7);}50%{box-shadow:0 0 0 10px rgba(167,199,150,0);} }
+@keyframes micPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.6);}50%{box-shadow:0 0 0 8px rgba(239,68,68,0);} }
+#voiceBtn.voice-on  { background:#ef4444;color:#fff;border-color:#ef4444; }
+#voiceBtn.voice-listening { background:#ef4444;color:#fff;border-color:#ef4444;animation:micPulse 1.2s ease-in-out infinite; }
 ol.steps { counter-reset: step; }
 ol.steps li { display: flex; gap: 10px; padding: 10px 6px; border-bottom: 1px dashed var(--border); }
 ol.steps li:last-child { border-bottom: 0; }
@@ -453,6 +456,7 @@ ol.steps li.current::before { background: var(--primary); }
           <button id="readAllBtn">🔊 הקראת המרשם</button>
           <button id="continueBtn" disabled>⏭ המשך</button>
           <button class="ghost" id="stopBtn">⏹ עצור</button>
+          <button class="ghost" id="voiceBtn" title="הפעל פקודות קול">🎤</button>
           <span class="status" id="readStatus">מוכן להקראה</span>
         </div>
         <div id="recImgWrap" style="display:none;"><img id="recImg" class="rec-photo" alt="תמונת המרשם"></div>
@@ -1126,6 +1130,88 @@ stopBtn.addEventListener('click', () => {
   readStatus.textContent = 'עצר.'; stepStatus.textContent = '—';
   highlightCurrent(-1); highlightIng(-1);
 });
+
+// ── Voice command: say "המשך" to continue reading ──────────────────────
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const voiceBtn = document.getElementById('voiceBtn');
+let voiceEnabled = false;
+let voiceRec = null;
+let voiceListening = false;
+
+if (!SpeechRecognition) {
+  voiceBtn.style.display = 'none'; // browser doesn't support it
+} else {
+  voiceRec = new SpeechRecognition();
+  voiceRec.lang = 'he-IL';
+  voiceRec.continuous = false;
+  voiceRec.interimResults = false;
+  voiceRec.maxAlternatives = 3;
+
+  voiceRec.onresult = (e) => {
+    for (let i = 0; i < e.results[0].length; i++) {
+      const t = e.results[0][i].transcript.trim();
+      if (t.includes('המשך') || t.includes('הבא') || t === 'next') {
+        if (qActive && !continueBtn.disabled) playNext();
+        break;
+      }
+    }
+  };
+
+  voiceRec.onend = () => {
+    voiceListening = false;
+    // Restart only if we're paused and waiting for input
+    if (voiceEnabled && qActive && !continueBtn.disabled) {
+      startListening();
+    } else {
+      voiceBtn.classList.remove('voice-listening');
+      if (voiceEnabled) voiceBtn.classList.add('voice-on');
+    }
+  };
+
+  voiceRec.onerror = (e) => {
+    voiceListening = false;
+    if (e.error === 'not-allowed') {
+      voiceEnabled = false;
+      voiceBtn.classList.remove('voice-on', 'voice-listening');
+      readStatus.textContent = 'לא ניתן לגשת למיקרופון';
+    }
+  };
+
+  function startListening() {
+    if (!voiceEnabled || voiceListening) return;
+    try { voiceRec.start(); voiceListening = true; voiceBtn.classList.add('voice-listening'); }
+    catch(e) {}
+  }
+
+  function stopListening() {
+    if (!voiceListening) return;
+    try { voiceRec.abort(); } catch(e) {}
+    voiceListening = false;
+    voiceBtn.classList.remove('voice-listening');
+  }
+
+  // Hook into showContinue to start/stop mic at the right moment
+  const _showContinue = showContinue;
+  showContinue = function(show) {
+    _showContinue(show);
+    if (show)  startListening();   // paused — start listening
+    else       stopListening();    // speaking — stop listening
+  };
+
+  voiceBtn.addEventListener('click', () => {
+    voiceEnabled = !voiceEnabled;
+    if (voiceEnabled) {
+      voiceBtn.classList.add('voice-on');
+      readStatus.textContent = 'פקודות קול פעילות — אמרי "המשך"';
+      // If already paused, start listening immediately
+      if (qActive && !continueBtn.disabled) startListening();
+    } else {
+      stopListening();
+      voiceBtn.classList.remove('voice-on', 'voice-listening');
+      readStatus.textContent = 'פקודות קול כבויות';
+    }
+  });
+}
 
 function speakStep(idx) {
   if (idx < 0 || idx >= recState.steps.length) return;
