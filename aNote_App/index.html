@@ -1127,7 +1127,9 @@ function speakText(text, onend) {
   synth.cancel();
   const cleaned = text
     .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{1F300}-\u{1F9FF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{25AA}-\u{25FE}\u{2614}\u{2615}\u{2648}-\u{2653}\u{267F}\u{2693}\u{26A1}\u{26AA}\u{26AB}\u{26BD}\u{26BE}\u{26C4}\u{26C5}\u{26CE}\u{26D4}\u{26EA}\u{26F2}\u{26F3}\u{26F5}\u{26FA}\u{26FD}\u{2702}\u{2705}\u{2708}-\u{270D}\u{270F}\u{2712}\u{2714}\u{2716}\u{271D}\u{2721}\u{2728}\u{2733}\u{2734}\u{2744}\u{2747}\u{274C}\u{274E}\u{2753}-\u{2755}\u{2757}\u{2763}\u{2764}\u{2795}-\u{2797}\u{27A1}\u{27B0}\u{27BF}]/gu, '')
-    .replace(/["""״''`]/g, '')
+    .replace(/["""״״''`]/g, '')
+    .replace(/\//g, ' או ')
+    .replace(/[|\\]/g, ' ')
     .replace(/[()[\]{}]/g, ' ')
     .replace(/[:,;]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -1265,10 +1267,14 @@ if (!SpeechRecognition) {
 
   const VOICE_TRIGGERS = ['המשך', 'הבא', 'קדימה', 'המשיך', 'next', 'continue'];
   const VOICE_BACK    = ['חזור', 'אחורה', 'חזרה', 'back'];
+  const VOICE_STOP    = ['עצור', 'עצרי', 'stop'];
 
   voiceRec.onresult = (e) => {
     for (let i = 0; i < e.results[0].length; i++) {
       const t = e.results[0][i].transcript.trim();
+      if (VOICE_STOP.some(w => t.includes(w))) {
+        stopBtn.click(); break;
+      }
       if (VOICE_BACK.some(w => t.includes(w))) {
         if (qActive && !continueBtn.disabled) playPrev();
         break;
@@ -1282,8 +1288,8 @@ if (!SpeechRecognition) {
 
   voiceRec.onend = () => {
     voiceListening = false;
-    if (voiceEnabled && qActive && !continueBtn.disabled) {
-      // Small delay prevents "start() called in wrong state" on some browsers
+    if (voiceEnabled && qActive) {
+      // Keep mic alive throughout entire reading session
       setTimeout(startListening, 200);
     } else {
       voiceBtn.classList.remove('voice-listening');
@@ -1308,7 +1314,8 @@ if (!SpeechRecognition) {
       voiceRec.start();
       voiceListening = true;
       voiceBtn.classList.add('voice-listening');
-      readStatus.textContent = 'מאזין... אמרי "המשך"';
+      // Only update status when paused (not mid-TTS)
+      if (!continueBtn.disabled) readStatus.textContent = 'מאזין... אמרי "המשך" / "חזור" / "עצור"';
     } catch(e) {
       // start() may fail if recognition is mid-shutdown; onend will retry
     }
@@ -1321,12 +1328,12 @@ if (!SpeechRecognition) {
     voiceBtn.classList.remove('voice-listening');
   }
 
-  // Hook into showContinue to start/stop mic at the right moment
+  // Hook into showContinue — keep mic alive during the whole reading session
   const _showContinue = showContinue;
   showContinue = function(show) {
     _showContinue(show);
-    if (show)  startListening();   // paused — start listening
-    else       stopListening();    // speaking — stop listening
+    if (voiceEnabled && qActive) startListening(); // keep mic on during reading+pauses
+    else if (!show && !qActive) stopListening();   // stop only when session ends
   };
 
   function setVoiceEnabled(val) {
