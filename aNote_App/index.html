@@ -1260,6 +1260,7 @@ if (!SpeechRecognition) {
     voiceListening = false;
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       voiceEnabled = false;
+      localStorage.removeItem('matkonim_voice');
       voiceBtn.classList.remove('voice-on', 'voice-listening');
       readStatus.textContent = 'לא ניתן לגשת למיקרופון';
     }
@@ -1293,19 +1294,27 @@ if (!SpeechRecognition) {
     else       stopListening();    // speaking — stop listening
   };
 
-  voiceBtn.addEventListener('click', () => {
-    voiceEnabled = !voiceEnabled;
-    if (voiceEnabled) {
+  function setVoiceEnabled(val) {
+    voiceEnabled = val;
+    localStorage.setItem('matkonim_voice', val ? '1' : '0');
+    if (val) {
       voiceBtn.classList.add('voice-on');
       readStatus.textContent = 'פקודות קול פעילות — אמרי "המשך"';
-      // If already paused, start listening immediately
       if (qActive && !continueBtn.disabled) startListening();
     } else {
       stopListening();
       voiceBtn.classList.remove('voice-on', 'voice-listening');
       readStatus.textContent = 'פקודות קול כבויות';
     }
-  });
+  }
+
+  voiceBtn.addEventListener('click', () => setVoiceEnabled(!voiceEnabled));
+
+  // Restore voice preference from previous session
+  if (localStorage.getItem('matkonim_voice') === '1') {
+    voiceEnabled = true;
+    voiceBtn.classList.add('voice-on');
+  }
 }
 
 function speakStep(idx) {
