@@ -219,6 +219,7 @@ input, textarea, select { font: inherit; color: inherit; }
   background: #fff1e6; padding: 9px; border-radius: 12px; margin-bottom: 11px;
 }
 .reading-bar .status { font-size: .84em; color: var(--muted); flex: 1; min-width: 90px; }
+#voiceSelect { font-size: .8em; border: 1.5px solid var(--border); border-radius: 8px; padding: 3px 6px; background: #fff; color: var(--text); max-width: 130px; }
 #section-recipes h2.sec {
   margin: 4px 0 9px; font-size: 1.06em; color: var(--primary-dark);
   display: flex; align-items: center; gap: 6px;
@@ -511,6 +512,7 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
           <button id="continueBtn" disabled>⏭ המשך</button>
           <button class="ghost" id="stopBtn">⏹ עצור</button>
           <button class="ghost" id="voiceBtn" title="הפעל פקודות קול">🎤</button>
+          <select id="voiceSelect" title="קול"></select>
           <span class="status" id="readStatus">מוכן להקראה</span>
         </div>
         <div id="recImgWrap" style="display:none;"><img id="recImg" class="rec-photo" alt="תמונת המרשם"></div>
@@ -1121,14 +1123,42 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
 // TTS
 const synth = window.speechSynthesis;
 let voices = [];
-function loadVoices() { voices = synth ? synth.getVoices() : []; }
-if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
-function pickHebrew() {
+const voiceSelect = document.getElementById('voiceSelect');
+let selectedVoiceName = localStorage.getItem('matkonim_voice_name') || '';
+
+function loadVoices() {
+  voices = synth ? synth.getVoices() : [];
   const heb = voices.filter(v => /^he|^iw/i.test(v.lang));
-  // Prefer Enhanced/Premium local voices (Apple Tami Enhanced, etc.)
-  return heb.find(v => /enhanced|premium/i.test(v.name))
-      || heb.find(v => v.localService)
-      || heb[0]
+  if (!heb.length) { voiceSelect.style.display = 'none'; return; }
+  voiceSelect.innerHTML = '';
+  heb.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = v.name.replace(' (he-IL)', '').replace(' (he_IL)', '');
+    if (v.name === selectedVoiceName) opt.selected = true;
+    voiceSelect.appendChild(opt);
+  });
+  // Auto-select best voice if no saved preference
+  if (!selectedVoiceName) {
+    const best = heb.find(v => /enhanced|premium/i.test(v.name))
+              || heb.find(v => v.localService)
+              || heb[0];
+    if (best) { voiceSelect.value = best.name; selectedVoiceName = best.name; }
+  }
+}
+if (synth) {
+  loadVoices();
+  synth.onvoiceschanged = loadVoices;
+}
+voiceSelect.addEventListener('change', () => {
+  selectedVoiceName = voiceSelect.value;
+  localStorage.setItem('matkonim_voice_name', selectedVoiceName);
+});
+
+function pickHebrew() {
+  return voices.find(v => v.name === selectedVoiceName)
+      || voices.find(v => /enhanced|premium/i.test(v.name) && /^he|^iw/i.test(v.lang))
+      || voices.find(v => /^he|^iw/i.test(v.lang))
       || null;
 }
 function speakText(text, onend) {
