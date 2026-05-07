@@ -1123,7 +1123,14 @@ const synth = window.speechSynthesis;
 let voices = [];
 function loadVoices() { voices = synth ? synth.getVoices() : []; }
 if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
-function pickHebrew() { return voices.find(v => /he|iw|hebrew/i.test(v.lang)) || null; }
+function pickHebrew() {
+  const heb = voices.filter(v => /^he|^iw/i.test(v.lang));
+  // Prefer Enhanced/Premium local voices (Apple Tami Enhanced, etc.)
+  return heb.find(v => /enhanced|premium/i.test(v.name))
+      || heb.find(v => v.localService)
+      || heb[0]
+      || null;
+}
 function speakText(text, onend) {
   if (!synth) { if (onend) onend(); return; }
   synth.cancel();
