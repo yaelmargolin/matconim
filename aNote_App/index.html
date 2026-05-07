@@ -1571,6 +1571,14 @@ renderHome();
       catch { window.__clerkToken = null; }
     }
 
+    function cacheKey(uid) { return 'matkonim_approved_' + uid; }
+
+    function grantAccess() {
+      document.getElementById('auth-wall').style.display = 'none';
+      window.Clerk.mountUserButton(document.getElementById('clerk-user-button'));
+      setInterval(refreshToken, 50000);
+    }
+
     async function handleSignedIn() {
       await refreshToken();
       const user = window.Clerk.user;
@@ -1579,6 +1587,21 @@ renderHome();
       window.__clerkUserId = user?.id || null;
       window.__isAdmin = (email === 'yaelmar52@gmail.com');
 
+      // Admin always gets in immediately
+      if (window.__isAdmin) { grantAccess(); return; }
+
+      // Returning approved user — grant access immediately from cache
+      if (localStorage.getItem(cacheKey(user.id)) === 'approved') {
+        grantAccess();
+        // Verify in background (handles edge case of revocation)
+        fetch('/api/user/status', { headers: { 'Authorization': 'Bearer ' + window.__clerkToken } })
+          .then(r => r.json())
+          .then(d => { if (d.status !== 'approved') { localStorage.removeItem(cacheKey(user.id)); location.reload(); } })
+          .catch(() => {});
+        return;
+      }
+
+      // First-time or unknown user — check with server
       const resp = await fetch('/api/user/status', {
         method: 'POST',
         headers: {
@@ -1589,9 +1612,8 @@ renderHome();
       }).then(r => r.json()).catch(() => ({ status: 'approved' }));
 
       if (resp.status === 'approved') {
-        document.getElementById('auth-wall').style.display = 'none';
-        window.Clerk.mountUserButton(document.getElementById('clerk-user-button'));
-        setInterval(refreshToken, 50000);
+        localStorage.setItem(cacheKey(user.id), 'approved');
+        grantAccess();
       } else if (resp.status === 'rejected') {
         document.getElementById('auth-wall').style.display = 'flex';
         document.getElementById('clerk-sign-in').style.display = 'none';
