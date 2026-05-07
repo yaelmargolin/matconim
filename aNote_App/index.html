@@ -1233,10 +1233,12 @@ if (!SpeechRecognition) {
   voiceRec.interimResults = false;
   voiceRec.maxAlternatives = 3;
 
+  const VOICE_TRIGGERS = ['המשך', 'הבא', 'קדימה', 'המשיך', 'next', 'continue'];
+
   voiceRec.onresult = (e) => {
     for (let i = 0; i < e.results[0].length; i++) {
       const t = e.results[0][i].transcript.trim();
-      if (t.includes('המשך') || t.includes('הבא') || t === 'next') {
+      if (VOICE_TRIGGERS.some(w => t.includes(w))) {
         if (qActive && !continueBtn.disabled) playNext();
         break;
       }
@@ -1245,9 +1247,9 @@ if (!SpeechRecognition) {
 
   voiceRec.onend = () => {
     voiceListening = false;
-    // Restart only if we're paused and waiting for input
     if (voiceEnabled && qActive && !continueBtn.disabled) {
-      startListening();
+      // Small delay prevents "start() called in wrong state" on some browsers
+      setTimeout(startListening, 200);
     } else {
       voiceBtn.classList.remove('voice-listening');
       if (voiceEnabled) voiceBtn.classList.add('voice-on');
@@ -1256,17 +1258,24 @@ if (!SpeechRecognition) {
 
   voiceRec.onerror = (e) => {
     voiceListening = false;
-    if (e.error === 'not-allowed') {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       voiceEnabled = false;
       voiceBtn.classList.remove('voice-on', 'voice-listening');
       readStatus.textContent = 'לא ניתן לגשת למיקרופון';
     }
+    // no-speech / network / aborted: onend will fire and restart automatically
   };
 
   function startListening() {
     if (!voiceEnabled || voiceListening) return;
-    try { voiceRec.start(); voiceListening = true; voiceBtn.classList.add('voice-listening'); }
-    catch(e) {}
+    try {
+      voiceRec.start();
+      voiceListening = true;
+      voiceBtn.classList.add('voice-listening');
+      readStatus.textContent = 'מאזין... אמרי "המשך"';
+    } catch(e) {
+      // start() may fail if recognition is mid-shutdown; onend will retry
+    }
   }
 
   function stopListening() {
