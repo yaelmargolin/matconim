@@ -506,6 +506,7 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
       <div class="card">
         <div class="reading-bar">
           <button id="readAllBtn">🔊 הקראת המרשם</button>
+          <button class="ghost" id="prevBtn" disabled>⏮ חזור</button>
           <button id="continueBtn" disabled>⏭ המשך</button>
           <button class="ghost" id="stopBtn">⏹ עצור</button>
           <button class="ghost" id="voiceBtn" title="הפעל פקודות קול">🎤</button>
@@ -1151,6 +1152,7 @@ const recViewTitle    = document.getElementById('recViewTitle');
 const ingredientsList = document.getElementById('ingredientsList');
 const stepsList       = document.getElementById('stepsList');
 const readAllBtn      = document.getElementById('readAllBtn');
+const prevBtn         = document.getElementById('prevBtn');
 const continueBtn     = document.getElementById('continueBtn');
 const stopBtn         = document.getElementById('stopBtn');
 const readStatus      = document.getElementById('readStatus');
@@ -1167,6 +1169,7 @@ function highlightIng(idx) { Array.from(ingredientsList.children).forEach((li, i
 function highlightCurrent(idx) { Array.from(stepsList.children).forEach((li, i) => li.classList.toggle('current', i === idx)); }
 function showContinue(show) {
   continueBtn.disabled = !show;
+  prevBtn.disabled = !show || qIdx <= 1;
   floatContinue.classList.toggle('visible', show);
   floatContinue.classList.toggle('reading', qActive && !show);
 }
@@ -1242,7 +1245,8 @@ readAllBtn.addEventListener('click', () => {
   queue = buildQueue(); qIdx = 0; qActive = true; playNext();
 });
 continueBtn.addEventListener('click',  () => { if (!qActive) return; playNext(); });
-floatContinue.addEventListener('click', () => { if (!qActive) return; playNext(); });
+prevBtn.addEventListener('click',         () => { if (!qActive) return; playPrev(); });
+floatContinue.addEventListener('click',   () => { if (!qActive) return; playNext(); });
 stopBtn.addEventListener('click', () => {
   if (synth) synth.cancel(); qActive = false; showContinue(false);
   readStatus.textContent = 'עצר.'; stepStatus.textContent = '—';
