@@ -252,6 +252,9 @@ ol.steps li::before {
 }
 ol.steps li.current { background: #fff1e6; border-radius: 10px; padding: 10px; }
 ol.steps li.current::before { background: var(--primary); }
+ol.steps li.done::before { background: var(--done); content: '✓'; }
+ol.steps li.done .step-text { color: var(--muted); }
+ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--done); cursor: pointer; flex-shrink: 0; align-self: flex-start; margin-top: 5px; }
 .step-text { flex: 1; }
 .step-actions { margin-top: 6px; display: flex; gap: 6px; }
 .form-group { margin-bottom: 13px; }
@@ -1197,7 +1200,16 @@ function playNext() {
   else readStatus.textContent = 'מקריאה...';
   showContinue(false);
   speakText(item.text, () => {
-    if (!qActive) return; qIdx++;
+    if (!qActive) return;
+    // Auto-check the item that just finished reading
+    if (item.stepIdx !== undefined) {
+      const cb = document.getElementById('step-cb-' + item.stepIdx);
+      if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    } else if (item.ingredientIdx !== undefined) {
+      const cb = document.getElementById('ing-' + item.ingredientIdx);
+      if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    }
+    qIdx++;
     if (item.pauseAfter && qIdx < queue.length) {
       showContinue(true);
       readStatus.textContent = item.stepIdx !== undefined ? 'לחצי "המשך" לשלב הבא' : 'לחצי "המשך" למצרך הבא';
@@ -1205,8 +1217,26 @@ function playNext() {
   });
 }
 
+function playPrev() {
+  if (!qActive) return;
+  if (synth) synth.cancel();
+  qIdx = Math.max(0, qIdx - 1);
+  const item = queue[qIdx];
+  if (item) {
+    // Uncheck the item we're about to re-read
+    const cbId = item.stepIdx !== undefined ? 'step-cb-' + item.stepIdx
+               : item.ingredientIdx !== undefined ? 'ing-' + item.ingredientIdx : null;
+    if (cbId) { const cb = document.getElementById(cbId); if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); } }
+  }
+  showContinue(false);
+  playNext();
+}
+
 readAllBtn.addEventListener('click', () => {
   if (!recState.ingredients.length && !recState.steps.length && !recState.notes) return;
+  // Reset all checkboxes for a fresh read
+  Array.from(stepsList.querySelectorAll('input[type=checkbox]')).forEach(cb => { if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); } });
+  Array.from(ingredientsList.querySelectorAll('input[type=checkbox]')).forEach(cb => { if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); } });
   queue = buildQueue(); qIdx = 0; qActive = true; playNext();
 });
 continueBtn.addEventListener('click',  () => { if (!qActive) return; playNext(); });
@@ -1234,10 +1264,15 @@ if (!SpeechRecognition) {
   voiceRec.maxAlternatives = 3;
 
   const VOICE_TRIGGERS = ['המשך', 'הבא', 'קדימה', 'המשיך', 'next', 'continue'];
+  const VOICE_BACK    = ['חזור', 'אחורה', 'חזרה', 'back'];
 
   voiceRec.onresult = (e) => {
     for (let i = 0; i < e.results[0].length; i++) {
       const t = e.results[0][i].transcript.trim();
+      if (VOICE_BACK.some(w => t.includes(w))) {
+        if (qActive && !continueBtn.disabled) playPrev();
+        break;
+      }
       if (VOICE_TRIGGERS.some(w => t.includes(w))) {
         if (qActive && !continueBtn.disabled) playNext();
         break;
@@ -1474,11 +1509,17 @@ function renderRecipeView() {
   stepsList.innerHTML = '';
   recState.steps.forEach((step, idx) => {
     const li   = document.createElement('li');
+    const cb   = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'step-cb-' + idx;
     const text = document.createElement('div'); text.className = 'step-text'; text.textContent = step;
     const acts = document.createElement('div'); acts.className = 'step-actions';
     const rb   = document.createElement('button'); rb.className = 'small ghost'; rb.textContent = '🔊 הקראה';
     rb.addEventListener('click', e => { e.stopPropagation(); speakStep(idx); });
-    acts.appendChild(rb); text.appendChild(acts); li.appendChild(text);
+    cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+    li.addEventListener('click', e => {
+      if (e.target === cb || e.target.closest('.step-actions')) return;
+      cb.checked = !cb.checked; cb.dispatchEvent(new Event('change'));
+    });
+    acts.appendChild(rb); text.appendChild(acts); li.appendChild(cb); li.appendChild(text);
     stepsList.appendChild(li);
   });
   readStatus.textContent = 'מוכן להקראה';
