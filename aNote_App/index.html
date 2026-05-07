@@ -506,7 +506,7 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
       <div class="card">
         <div class="reading-bar">
           <button id="readAllBtn">🔊 הקראת המרשם</button>
-          <button class="ghost" id="prevBtn" disabled>⏮ חזור</button>
+          <button class="ghost" id="prevBtn" style="display:none">⏮ חזור</button>
           <button id="continueBtn" disabled>⏭ המשך</button>
           <button class="ghost" id="stopBtn">⏹ עצור</button>
           <button class="ghost" id="voiceBtn" title="הפעל פקודות קול">🎤</button>
@@ -1169,7 +1169,7 @@ function highlightIng(idx) { Array.from(ingredientsList.children).forEach((li, i
 function highlightCurrent(idx) { Array.from(stepsList.children).forEach((li, i) => li.classList.toggle('current', i === idx)); }
 function showContinue(show) {
   continueBtn.disabled = !show;
-  prevBtn.disabled = !show || qIdx <= 1;
+  prevBtn.style.display = (show && qIdx > 1) ? '' : 'none';
   floatContinue.classList.toggle('visible', show);
   floatContinue.classList.toggle('reading', qActive && !show);
 }
