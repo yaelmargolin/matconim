@@ -1305,7 +1305,7 @@ if (!SpeechRecognition) {
     voiceListening = false;
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       voiceEnabled = false;
-      localStorage.removeItem('matkonim_voice');
+      localStorage.setItem('matkonim_voice', '0');
       voiceBtn.classList.remove('voice-on', 'voice-listening');
       readStatus.textContent = 'לא ניתן לגשת למיקרופון';
     }
@@ -1356,8 +1356,8 @@ if (!SpeechRecognition) {
 
   voiceBtn.addEventListener('click', () => setVoiceEnabled(!voiceEnabled));
 
-  // Restore voice preference from previous session
-  if (localStorage.getItem('matkonim_voice') === '1') {
+  // Voice is ON by default; only OFF if user explicitly disabled it
+  if (localStorage.getItem('matkonim_voice') !== '0') {
     voiceEnabled = true;
     voiceBtn.classList.add('voice-on');
   }
