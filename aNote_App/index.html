@@ -220,12 +220,6 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .reading-bar .status { font-size: .84em; color: var(--muted); flex: 1; min-width: 90px; }
 #voiceSelect { font-size: .8em; border: 1.5px solid var(--border); border-radius: 8px; padding: 3px 6px; background: #fff; color: var(--text); max-width: 130px; }
-.tts-settings { background: #fff8f0; border: 1.5px solid var(--border); border-radius: 12px; padding: 13px 14px; margin-bottom: 11px; display: flex; flex-direction: column; gap: 10px; }
-.tts-settings label { font-size: .85em; color: var(--muted); min-width: 80px; }
-.tts-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.tts-row input[type=password], .tts-row input[type=text] { flex: 1; min-width: 180px; font-size: .88em; border: 1.5px solid var(--border); border-radius: 8px; padding: 5px 9px; }
-.tts-row select { font-size: .85em; border: 1.5px solid var(--border); border-radius: 8px; padding: 4px 7px; background: #fff; flex: 1; }
-#elStatus { font-size: .8em; color: var(--muted); }
 #section-recipes h2.sec {
   margin: 4px 0 9px; font-size: 1.06em; color: var(--primary-dark);
   display: flex; align-items: center; gap: 6px;
@@ -519,30 +513,7 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
           <button class="ghost" id="stopBtn">⏹ עצור</button>
           <button class="ghost" id="voiceBtn" title="הפעל פקודות קול">🎤</button>
           <select id="voiceSelect" title="קול"></select>
-          <button class="ghost" id="ttsSettingsBtn" title="הגדרות הקראה">⚙</button>
           <span class="status" id="readStatus">מוכן להקראה</span>
-        </div>
-        <div id="ttsSettingsPanel" class="tts-settings hidden">
-          <div class="tts-row">
-            <label>מנוע:</label>
-            <select id="ttsEngine">
-              <option value="browser">דפדפן (ברירת מחדל)</option>
-              <option value="elevenlabs">ElevenLabs</option>
-            </select>
-          </div>
-          <div id="elSettingsBlock" class="hidden">
-            <div class="tts-row" style="margin-bottom:8px;">
-              <label>API Key:</label>
-              <input type="password" id="elApiKey" placeholder="sk_...">
-              <button class="small" id="elSaveBtn">שמור</button>
-            </div>
-            <div class="tts-row">
-              <label>קול:</label>
-              <select id="elVoiceSelect"><option value="">— בחרי קול —</option></select>
-              <button class="small ghost" id="elLoadVoicesBtn">טען קולות</button>
-            </div>
-            <span id="elStatus"></span>
-          </div>
         </div>
         <div id="recImgWrap" style="display:none;"><img id="recImg" class="rec-photo" alt="תמונת המרשם"></div>
         <h2 class="sec"><span>🥕</span> מצרכים</h2>
@@ -1202,47 +1173,10 @@ function cleanForTTS(text) {
     .trim();
 }
 
-// ── ElevenLabs TTS ──────────────────────────────────────────────────────────
-let elAudio = null;
-function stopElevenLabs() { if (elAudio) { elAudio.pause(); elAudio = null; } }
-
-async function speakWithElevenLabs(text, onend) {
-  stopElevenLabs();
-  const apiKey = localStorage.getItem('el_api_key');
-  const voiceId = localStorage.getItem('el_voice_id');
-  if (!apiKey || !voiceId) { if (onend) onend(); return; }
-  try {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-      })
-    });
-    if (!res.ok) throw new Error('ElevenLabs ' + res.status);
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    elAudio = new Audio(url);
-    elAudio.onended = () => { URL.revokeObjectURL(url); elAudio = null; if (onend) onend(); };
-    elAudio.onerror = () => { URL.revokeObjectURL(url); elAudio = null; if (onend) onend(); };
-    elAudio.play();
-  } catch(e) {
-    console.error(e);
-    document.getElementById('elStatus').textContent = '⚠ ' + e.message;
-    if (onend) onend();
-  }
-}
-
 function speakText(text, onend) {
-  const cleaned = cleanForTTS(text);
-  if (localStorage.getItem('el_enabled') === '1') {
-    speakWithElevenLabs(cleaned, onend);
-    return;
-  }
   if (!synth) { if (onend) onend(); return; }
   synth.cancel();
+  const cleaned = cleanForTTS(text);
   setTimeout(() => {
     const u = new SpeechSynthesisUtterance(cleaned);
     const v = pickHebrew(); if (v) u.voice = v; u.lang = v ? v.lang : 'he-IL'; u.rate = 0.95;
@@ -1254,80 +1188,6 @@ function speakText(text, onend) {
     synth.speak(u);
   }, 50);
 }
-
-// ── TTS Settings panel ──────────────────────────────────────────────────────
-const ttsSettingsBtn   = document.getElementById('ttsSettingsBtn');
-const ttsSettingsPanel = document.getElementById('ttsSettingsPanel');
-const ttsEngine        = document.getElementById('ttsEngine');
-const elSettingsBlock  = document.getElementById('elSettingsBlock');
-const elApiKeyInput    = document.getElementById('elApiKey');
-const elSaveBtn        = document.getElementById('elSaveBtn');
-const elVoiceSelect    = document.getElementById('elVoiceSelect');
-const elLoadVoicesBtn  = document.getElementById('elLoadVoicesBtn');
-const elStatus         = document.getElementById('elStatus');
-
-// Restore saved settings
-if (localStorage.getItem('el_enabled') === '1') {
-  ttsEngine.value = 'elevenlabs';
-  elSettingsBlock.classList.remove('hidden');
-  voiceSelect.style.display = 'none';
-}
-if (localStorage.getItem('el_api_key')) elApiKeyInput.value = localStorage.getItem('el_api_key');
-if (localStorage.getItem('el_voice_id') && localStorage.getItem('el_voice_name')) {
-  const opt = document.createElement('option');
-  opt.value = localStorage.getItem('el_voice_id');
-  opt.textContent = localStorage.getItem('el_voice_name');
-  opt.selected = true;
-  elVoiceSelect.appendChild(opt);
-}
-
-ttsSettingsBtn.addEventListener('click', () => ttsSettingsPanel.classList.toggle('hidden'));
-
-ttsEngine.addEventListener('change', () => {
-  const isEL = ttsEngine.value === 'elevenlabs';
-  localStorage.setItem('el_enabled', isEL ? '1' : '0');
-  elSettingsBlock.classList.toggle('hidden', !isEL);
-  voiceSelect.style.display = isEL ? 'none' : '';
-});
-
-elSaveBtn.addEventListener('click', () => {
-  localStorage.setItem('el_api_key', elApiKeyInput.value.trim());
-  elStatus.textContent = '✓ API Key נשמר';
-  setTimeout(() => elStatus.textContent = '', 2000);
-});
-
-elLoadVoicesBtn.addEventListener('click', async () => {
-  const apiKey = elApiKeyInput.value.trim() || localStorage.getItem('el_api_key');
-  if (!apiKey) { elStatus.textContent = 'הכניסי API Key תחילה'; return; }
-  elStatus.textContent = 'טוען קולות...';
-  try {
-    const res = await fetch('https://api.elevenlabs.io/v1/voices', {
-      headers: { 'xi-api-key': apiKey }
-    });
-    if (!res.ok) throw new Error('שגיאה ' + res.status);
-    const data = await res.json();
-    elVoiceSelect.innerHTML = '<option value="">— בחרי קול —</option>';
-    (data.voices || []).sort((a,b) => a.name.localeCompare(b.name)).forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.voice_id;
-      opt.textContent = v.name;
-      if (v.voice_id === localStorage.getItem('el_voice_id')) opt.selected = true;
-      elVoiceSelect.appendChild(opt);
-    });
-    elStatus.textContent = `✓ ${data.voices?.length || 0} קולות נטענו`;
-  } catch(e) {
-    elStatus.textContent = '⚠ ' + e.message;
-  }
-});
-
-elVoiceSelect.addEventListener('change', () => {
-  const opt = elVoiceSelect.selectedOptions[0];
-  if (!opt?.value) return;
-  localStorage.setItem('el_voice_id', opt.value);
-  localStorage.setItem('el_voice_name', opt.textContent);
-  elStatus.textContent = `✓ קול "${opt.textContent}" נבחר`;
-  setTimeout(() => elStatus.textContent = '', 2000);
-});
 
 // Recipe view
 const recViewTitle    = document.getElementById('recViewTitle');
@@ -1430,7 +1290,7 @@ continueBtn.addEventListener('click',  () => { if (!qActive) return; playNext();
 prevBtn.addEventListener('click',         () => { if (!qActive) return; playPrev(); });
 floatContinue.addEventListener('click',   () => { if (!qActive) return; playNext(); });
 stopBtn.addEventListener('click', () => {
-  if (synth) synth.cancel(); stopElevenLabs(); qActive = false; showContinue(false);
+  if (synth) synth.cancel(); qActive = false; showContinue(false);
   readStatus.textContent = 'עצר.'; stepStatus.textContent = '—';
   highlightCurrent(-1); highlightIng(-1);
 });
