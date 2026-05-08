@@ -753,11 +753,16 @@ function parseRecipe(text) {
         }
       } else {
         // step header without preceding ing
+        const stepHeaderLineIdx = headers[j].i;
         const stepHeader = hdrLabel(headers[j].line);
         const stepStart  = headers[j].i + 1;
         j++;
         const stepEnd = j < headers.length ? headers[j].i : lines.length;
-        res.sections.push({ ingHeader: null, ingredients: [], stepHeader, steps: extractSteps(stepStart, stepEnd) });
+        // If this is the very first section, look for ingredient lines before the step header
+        const preIngs = (res.sections.length === 0)
+          ? extractIngs(titleIdx !== -1 ? titleIdx + 1 : 0, stepHeaderLineIdx)
+          : [];
+        res.sections.push({ ingHeader: null, ingredients: preIngs, stepHeader, steps: extractSteps(stepStart, stepEnd) });
       }
     }
     res.ingredients = res.sections.flatMap(s => s.ingredients);
@@ -1534,10 +1539,8 @@ function openRecipe(id) {
       sections = rp.sections;
       // If parser found fewer ingredients than stored, keep stored ings in first section
       const parsedIngs = rp.sections.flatMap(s => s.ingredients);
-      if (parsedIngs.length < storedIngs.length && storedIngs.length > 0) {
-        if (sections[0].ingredients.length === 0) {
-          sections[0] = { ...sections[0], ingredients: storedIngs };
-        }
+      if (parsedIngs.length === 0 && storedIngs.length > 0) {
+        sections[0] = { ...sections[0], ingredients: storedIngs };
       }
       if (rp.ingredients.length) ingredients = rp.ingredients;
       if (rp.steps.length) steps = rp.steps;
