@@ -516,16 +516,13 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
           <span class="status" id="readStatus">מוכן להקראה</span>
         </div>
         <div id="recImgWrap" style="display:none;"><img id="recImg" class="rec-photo" alt="תמונת המרשם"></div>
-        <h2 class="sec"><span>🥕</span> מצרכים</h2>
-        <ul class="ingredients" id="ingredientsList"></ul>
-        <h2 class="sec" style="margin-top:17px;"><span>👩‍🍳</span> אופן ההכנה</h2>
-        <div class="reading-bar" style="margin-top:7px;">
-          <button id="startStepsBtn">▶️ שלב-שלב</button>
-          <button class="ghost" id="nextStepBtn">הבא ⏭</button>
-          <button class="ghost" id="repeatStepBtn">🔁 חזרה</button>
-          <span class="status" id="stepStatus">—</span>
+        <div id="sectionsContainer"></div>
+        <div style="display:none;">
+          <button id="startStepsBtn"></button>
+          <button id="nextStepBtn"></button>
+          <button id="repeatStepBtn"></button>
+          <span id="stepStatus"></span>
         </div>
-        <ol class="steps" id="stepsList"></ol>
         <div id="recNotes" class="hidden" style="background:var(--bg-alt);border-radius:10px;padding:11px 14px;margin-top:14px;font-size:.95em;line-height:1.7;white-space:pre-wrap;color:var(--text);"></div>
         <div id="recRawText" class="hidden" style="margin-top:18px;padding-top:14px;border-top:1.5px solid var(--border);">
           <h3 style="font-size:.85em;color:var(--muted);margin:0 0 8px;font-weight:600;">📄 הטקסט המקורי</h3>
@@ -667,112 +664,138 @@ function autoCategory(title, text) {
 }
 
 function parseRecipe(text) {
-  const res = { title: '', ingredients: [], steps: [], notes: '' };
+  const res = { title: '', ingredients: [], steps: [], notes: '', sections: [] };
   if (!text || !text.trim()) return res;
   const lines = text.replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
   const ingKW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|המרכיבים|רשימת\s+המרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?|for\s+the)(\s|[:\-–—(]|$)/i;
   const stepKW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|שלבי(\s+הכנה)?|הוראות\s+הביצוע|דרך\s+ה?הכנה|שיטת\s+הכנה|ביצוע|הכנת|הוראות|preparation|instructions?|method|directions?)(\s|[:\-–—(]|$)/i;
   const ingH  = l => ingKW.test(l)  && l.length < 60;
   const stepH = l => stepKW.test(l) && l.length < 60;
-  let title = '', ingStart = -1, ingEnd = -1, stepStart = -1, stepEnd = lines.length;
-  let titleIdx = -1;
+  // Find title (first non-header non-empty line)
+  let title = '', titleIdx = -1;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i]; if (!l) continue;
-    if (!title && ingStart === -1 && stepStart === -1) {
-      if (!ingH(l) && !stepH(l)) { title = l; titleIdx = i; continue; }
+    if (!ingH(l) && !stepH(l)) { title = l; titleIdx = i; break; }
+  }
+
+  // Collect ALL header positions after title
+  const headers = [];
+  for (let i = (titleIdx !== -1 ? titleIdx + 1 : 0); i < lines.length; i++) {
+    const l = lines[i]; if (!l) continue;
+    if (ingH(l)) headers.push({ type: 'ing', line: l, i });
+    else if (stepH(l)) headers.push({ type: 'step', line: l, i });
+  }
+
+  // Strip trailing colon/dash from header line for display
+  const hdrLabel = l => l.replace(/[:\u2013\u2014-]+\s*$/, '').trim();
+
+  // Extract ingredients from a line range
+  const extractIngs = (start, end) => {
+    if (start < 0) return [];
+    const ings = [];
+    for (let i = start; i < end; i++) {
+      const r = lines[i]; if (!r) continue;
+      if (ingH(r) || stepH(r)) break;
+      const c = r.replace(/^[-\u2022*\u2013\u00B7\u2010]+\s*/, '').replace(/^\d+[.\)]+\s*/, '').trim();
+      if (c) ings.push(c);
     }
-    if (ingH(l))  { if (ingStart === -1) ingStart = i + 1; continue; }
-    if (stepH(l)) { if (ingStart !== -1 && ingEnd === -1) ingEnd = i; if (stepStart === -1) stepStart = i + 1; }
-  }
-  if (ingStart !== -1 && ingEnd === -1) ingEnd = stepStart !== -1 ? stepStart - 1 : lines.length;
-  res.title = title || '';
-  if (ingStart !== -1) for (let i = ingStart; i < ingEnd; i++) {
-    const r = lines[i]; if (!r) continue;
-    const c = r.replace(/^[-•*–·‐]+\s*/, '').replace(/^\d+[\.\)]\s*/, '').trim();
-    if (c) res.ingredients.push(c);
-  }
-  if (stepStart !== -1) {
+    return ings;
+  };
+
+  // Extract steps from a line range
+  const extractSteps = (start, end) => {
+    if (start < 0) return [];
+    const steps = [];
     let buf = '';
-    const flushStep = () => {
-      const t = buf.trim().replace(/\.\s*$/, '');
-      if (t.length > 2) res.steps.push(t);
-      buf = '';
-    };
-    for (let i = stepStart; i < stepEnd; i++) {
-      const r = lines[i];
-      if (!r) { flushStep(); continue; }
-      if (/^\d+[\.\)]\s+/.test(r))     { flushStep(); buf = r.replace(/^\d+[\.\)]\s+/, '').replace(/\.\s*$/, ''); flushStep(); }
-      else if (/^[-•*–·‐]\s+/.test(r)) { flushStep(); buf = r.replace(/^[-•*–·‐]\s+/, '').replace(/\.\s*$/, ''); flushStep(); }
-      else {
-        buf += (buf ? ' ' : '') + r;
-        if (/\.\s*$/.test(r)) flushStep(); // שורה מסתיימת בנקודה → שלב נפרד
+    const flush = () => { const t = buf.trim().replace(/\.\s*$/, ''); if (t.length > 2) steps.push(t); buf = ''; };
+    for (let i = start; i < end; i++) {
+      const r = lines[i]; if (!r) { flush(); continue; }
+      if (ingH(r) || stepH(r)) break;
+      if (/^\d+[.\)]\s+/.test(r))     { flush(); buf = r.replace(/^\d+[.\)]\s+/, '').replace(/\.\s*$/, ''); flush(); }
+      else if (/^[-\u2022*\u2013\u00B7\u2010]\s+/.test(r)) { flush(); buf = r.replace(/^[-\u2022*\u2013\u00B7\u2010]\s+/, '').replace(/\.\s*$/, ''); flush(); }
+      else { buf += (buf ? ' ' : '') + r; if (/\.\s*$/.test(r)) flush(); }
+    }
+    flush();
+    const split = [];
+    for (const step of steps) {
+      const parts = step.split(/\.(?=\s*[\u05D0-\u05EA\uFB1D-\uFB4EA-Za-z])/);
+      for (const p of parts) { const t = p.trim().replace(/\.\s*$/, ''); if (t.length > 3) split.push(t); }
+    }
+    return split.length > 0 ? split : steps;
+  };
+
+  if (headers.length > 0) {
+    // Group headers into sections: ing -> step -> ing -> step ...
+    let j = 0;
+    while (j < headers.length) {
+      if (headers[j].type === 'ing') {
+        const ingHeader = hdrLabel(headers[j].line);
+        const ingStart  = headers[j].i + 1;
+        j++;
+        if (j < headers.length && headers[j].type === 'step') {
+          const ingEnd     = headers[j].i;
+          const stepHeader = hdrLabel(headers[j].line);
+          const stepStart  = headers[j].i + 1;
+          j++;
+          const stepEnd = j < headers.length ? headers[j].i : lines.length;
+          res.sections.push({ ingHeader, ingredients: extractIngs(ingStart, ingEnd), stepHeader, steps: extractSteps(stepStart, stepEnd) });
+        } else {
+          const ingEnd = j < headers.length ? headers[j].i : lines.length;
+          res.sections.push({ ingHeader, ingredients: extractIngs(ingStart, ingEnd), stepHeader: null, steps: [] });
+        }
+      } else {
+        // step header without preceding ing
+        const stepHeader = hdrLabel(headers[j].line);
+        const stepStart  = headers[j].i + 1;
+        j++;
+        const stepEnd = j < headers.length ? headers[j].i : lines.length;
+        res.sections.push({ ingHeader: null, ingredients: [], stepHeader, steps: extractSteps(stepStart, stepEnd) });
       }
     }
-    flushStep();
-  }
-  if (!res.ingredients.length) {
+    res.ingredients = res.sections.flatMap(s => s.ingredients);
+    res.steps       = res.sections.flatMap(s => s.steps);
+
+  } else {
+    // No explicit headers: auto-detect ingredient lines, then steps below them
     const isIngLine = l =>
-      /^[\d½¼¾⅓⅔⅛⅜⅝⅞]/.test(l) ||
+      /^[\d\u00BD\u00BC\u00BE\u2153\u2154\u215B\u215C\u215D\u215E]/.test(l) ||
       /^\d+[\/\d]*\s+/.test(l) ||
-      /^(כף|כפיות?|כוסות?|ק"ג|גרם|מ"ל|ליטר|חבילת?|קופסת?|ענפי?|שיני|שן|פרוסות?|מעט|קמצוץ|חצי|רבע|שליש)\s/i.test(l);
-    const boundary = stepStart !== -1 ? stepStart - 1 : lines.length;
-    const autoIngs = [];
-    for (let i = 0; i < boundary; i++) {
-      const l = lines[i]; if (!l) continue;
-      if (isIngLine(l)) autoIngs.push(l.replace(/^[-•*–·‐]+\s*/, '').trim());
-    }
-    if (autoIngs.length >= 2) {
-      res.ingredients = autoIngs;
-      if (res.title && isIngLine(res.title)) res.title = '';
-    }
-  }
-  if (!res.steps.length && res.ingredients.length && stepStart === -1) {
-    const isIngLine = l =>
-      /^[\d½¼¾⅓⅔⅛⅜⅝⅞]/.test(l) ||
-      /^\d+[\/\d]*\s+/.test(l) ||
-      /^(כף|כפיות?|כוסות?|ק"ג|גרם|מ"ל|ליטר|חבילת?|קופסת?|ענפי?|שיני|שן|פרוסות?|מעט|קמצוץ|חצי|רבע|שליש)\s/i.test(l);
+      /^(\u05DB\u05E3|\u05DB\u05E4\u05D9\u05D5\u05EA?|\u05DB\u05D5\u05E1\u05D5\u05EA?|\u05E7"\u05D2|\u05D2\u05E8\u05DD|\u05DE"\u05DC|\u05DC\u05D9\u05D8\u05E8|\u05D7\u05D1\u05D9\u05DC\u05EA?|\u05E7\u05D5\u05E4\u05E1\u05EA?|\u05E2\u05E0\u05E4\u05D9?|\u05E9\u05D9\u05E0\u05D9|\u05E9\u05DF|\u05E4\u05E8\u05D5\u05E1\u05D5\u05EA?|\u05DE\u05E2\u05D8|\u05E7\u05DE\u05E6\u05D5\u05E5|\u05D7\u05E6\u05D9|\u05E8\u05D1\u05E2|\u05E9\u05DC\u05D9\u05E9)\s/i.test(l);
     let splitIdx = 0;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i] && isIngLine(lines[i])) splitIdx = i + 1;
+    for (let i = titleIdx !== -1 ? titleIdx + 1 : 0; i < lines.length; i++) {
+      const l = lines[i]; if (!l) continue;
+      if (isIngLine(l)) { res.ingredients.push(l.replace(/^[-\u2022*\u2013\u00B7\u2010]+\s*/, '').trim()); splitIdx = i + 1; }
     }
+    if (res.ingredients.length >= 2 && res.title && isIngLine(res.title)) res.title = '';
     if (splitIdx < lines.length) {
       let buf = '';
-      const flush2 = () => {
-        const t = buf.trim().replace(/\.\s*$/, '');
-        if (t.length > 2) res.steps.push(t);
-        buf = '';
-      };
+      const flush2 = () => { const t = buf.trim().replace(/\.\s*$/, ''); if (t.length > 2) res.steps.push(t); buf = ''; };
       for (let i = splitIdx; i < lines.length; i++) {
         const r = lines[i];
         if (!r) { flush2(); continue; }
-        if (/^\d+[\.\)]\s+/.test(r))     { flush2(); buf = r.replace(/^\d+[\.\)]\s+/, '').replace(/\.\s*$/, ''); flush2(); }
-        else if (/^[-•*–·‐]\s+/.test(r)) { flush2(); buf = r.replace(/^[-•*–·‐]\s+/, '').replace(/\.\s*$/, ''); flush2(); }
-        else {
-          buf += (buf ? ' ' : '') + r;
-          if (/\.\s*$/.test(r)) flush2();
-        }
+        if (/^\d+[.\)]\s+/.test(r))     { flush2(); buf = r.replace(/^\d+[.\)]\s+/, '').replace(/\.\s*$/, ''); flush2(); }
+        else if (/^[-\u2022*\u2013\u00B7\u2010]\s+/.test(r)) { flush2(); buf = r.replace(/^[-\u2022*\u2013\u00B7\u2010]\s+/, '').replace(/\.\s*$/, ''); flush2(); }
+        else { buf += (buf ? ' ' : '') + r; if (/\.\s*$/.test(r)) flush2(); }
       }
       flush2();
     }
-  }
-  // פיצול שלבים לפי משפטים — כל משפט שמסתיים בנקודה = שלב נפרד
-  if (res.steps.length) {
-    const splitSteps = [];
-    for (const step of res.steps) {
-      // פיצול על נקודה שאחריה אות (עברית/לטינית) — עם או בלי רווח — אך לא לפני ספרה
-      const parts = step.split(/\.(?=\s*[א-תװ-״יִ-פֿA-Za-z])/);
-      for (const p of parts) {
-        const t = p.trim().replace(/\.\s*$/, '');
-        if (t.length > 3) splitSteps.push(t);
+    if (res.steps.length) {
+      const splitSteps = [];
+      for (const step of res.steps) {
+        const parts = step.split(/\.(?=\s*[\u05D0-\u05EA\uFB1D-\uFB4EA-Za-z])/);
+        for (const p of parts) { const t = p.trim().replace(/\.\s*$/, ''); if (t.length > 3) splitSteps.push(t); }
       }
+      if (splitSteps.length > 0) res.steps = splitSteps;
     }
-    if (splitSteps.length > 0) res.steps = splitSteps;
+    res.sections = [{ ingHeader: null, ingredients: res.ingredients, stepHeader: null, steps: res.steps }];
   }
-  // Capture intro notes: text between title line and first section header
-  const noteStart = titleIdx !== -1 ? titleIdx + 1 : 0;
-  const noteEnd   = ingStart !== -1 ? ingStart - 1 : (stepStart !== -1 ? stepStart - 1 : lines.length);
+
+  res.title = title || '';
+
+  // Notes: text between title and first header
+  const firstHdrLine = headers.length > 0 ? headers[0].i : lines.length;
   const noteLines = [];
-  for (let i = noteStart; i < noteEnd; i++) { if (lines[i]) noteLines.push(lines[i]); }
+  for (let i = titleIdx !== -1 ? titleIdx + 1 : 0; i < firstHdrLine; i++) { if (lines[i]) noteLines.push(lines[i]); }
   res.notes = noteLines.join('\n').trim();
   return res;
 }
@@ -1248,11 +1271,17 @@ const repeatStepBtn   = document.getElementById('repeatStepBtn');
 const stepStatus      = document.getElementById('stepStatus');
 const floatContinue   = document.getElementById('floatContinue');
 
-let recState = { title: '', ingredients: [], steps: [], notes: '', currentStep: -1 };
+let recState = { title: '', ingredients: [], steps: [], sections: [], notes: '', currentStep: -1, currentSec: 0 };
 let queue = [], qIdx = 0, qActive = false;
 
-function highlightIng(idx) { Array.from(ingredientsList.children).forEach((li, i) => li.classList.toggle('reading', i === idx)); }
-function highlightCurrent(idx) { Array.from(stepsList.children).forEach((li, i) => li.classList.toggle('current', i === idx)); }
+function highlightIng(secIdx, ingIdx) {
+  document.querySelectorAll('#sectionsContainer ul.ingredients li').forEach(li => li.classList.remove('reading'));
+  if (secIdx >= 0 && ingIdx >= 0) { const cb = document.getElementById('ing-' + secIdx + '-' + ingIdx); if (cb) cb.closest('li').classList.add('reading'); }
+}
+function highlightCurrent(secIdx, stepIdx) {
+  document.querySelectorAll('#sectionsContainer ol.steps li').forEach(li => li.classList.remove('current'));
+  if (secIdx >= 0 && stepIdx >= 0) { const cb = document.getElementById('step-' + secIdx + '-' + stepIdx); if (cb) cb.closest('li').classList.add('current'); }
+}
 function showContinue(show) {
   continueBtn.disabled = !show;
   prevBtn.disabled = !(show && qIdx > 1);
@@ -1263,18 +1292,27 @@ function showContinue(show) {
 function buildQueue() {
   const q = [];
   if (recState.title) q.push({ text: recState.title + '.', pauseAfter: false });
-  if (recState.ingredients.length) {
-    q.push({ text: 'המצרכים:', pauseAfter: false });
-    recState.ingredients.forEach((ing, idx) => q.push({ text: ing + '.', pauseAfter: true, onStart: () => highlightIng(idx), ingredientIdx: idx }));
-  }
-  if (recState.steps.length) {
-    q.push({ text: 'אופן ההכנה:', pauseAfter: false, onStart: () => highlightIng(-1) });
-    recState.steps.forEach((s, i) => q.push({ text: 'שלב ' + (i+1) + '. ' + s, pauseAfter: true, stepIdx: i, onStart: () => { recState.currentStep = i; highlightCurrent(i); } }));
-  }
+  recState.sections.forEach((sec, secIdx) => {
+    if (sec.ingredients.length) {
+      const ingLabel = (recState.sections.length > 1 && sec.ingHeader) ? sec.ingHeader + ':' : 'המצרכים:';
+      q.push({ text: ingLabel, pauseAfter: false });
+      sec.ingredients.forEach((ing, ingIdx) => {
+        q.push({ text: ing + '.', pauseAfter: true, secIdx, ingIdx, onStart: () => highlightIng(secIdx, ingIdx) });
+      });
+    }
+    if (sec.steps.length) {
+      const stepLabel = (recState.sections.length > 1 && sec.stepHeader) ? sec.stepHeader + ':' : 'אופן ההכנה:';
+      q.push({ text: stepLabel, pauseAfter: false, onStart: () => highlightIng(-1, -1) });
+      sec.steps.forEach((step, stepIdx) => {
+        q.push({ text: 'שלב ' + (stepIdx+1) + '. ' + step, pauseAfter: true, secIdx, stepIdx,
+          onStart: () => { recState.currentStep = stepIdx; recState.currentSec = secIdx; highlightCurrent(secIdx, stepIdx); } });
+      });
+    }
+  });
   // אם אין מצרכים ושלבים — קרא את הטקסט החופשי כשלבים לפי משפטים
   if (!recState.ingredients.length && !recState.steps.length && recState.notes) {
     const sentences = recState.notes.split(/\.\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
-    sentences.forEach((s, i) => q.push({ text: s, pauseAfter: i < sentences.length - 1, stepIdx: i }));
+    sentences.forEach((s, i) => q.push({ text: s, pauseAfter: i < sentences.length - 1, secIdx: 0, stepIdx: i }));
   }
   return q;
 }
@@ -1282,22 +1320,22 @@ function buildQueue() {
 function playNext() {
   if (!qActive) return;
   if (qIdx >= queue.length) {
-    qActive = false; showContinue(false); highlightIng(-1);
+    qActive = false; showContinue(false); highlightIng(-1, -1);
     readStatus.textContent = 'ההקראה הסתיימה 🎉'; return;
   }
   const item = queue[qIdx]; if (item.onStart) item.onStart();
-  if (item.ingredientIdx !== undefined) readStatus.textContent = 'מצרך ' + (item.ingredientIdx+1) + ' מתוך ' + recState.ingredients.length;
-  else if (item.stepIdx !== undefined) readStatus.textContent = 'שלב ' + (item.stepIdx+1) + ' מתוך ' + recState.steps.length;
+  if (item.ingIdx !== undefined) { const sec = recState.sections[item.secIdx] || {}; readStatus.textContent = 'מצרך ' + (item.ingIdx+1) + ' מתוך ' + (sec.ingredients||[]).length; }
+  else if (item.stepIdx !== undefined) { const sec = recState.sections[item.secIdx] || {}; readStatus.textContent = 'שלב ' + (item.stepIdx+1) + ' מתוך ' + (sec.steps||[]).length; }
   else readStatus.textContent = 'מקריאה...';
   showContinue(false);
   speakText(item.text, () => {
     if (!qActive) return;
     // Auto-check the item that just finished reading
     if (item.stepIdx !== undefined) {
-      const cb = document.getElementById('step-cb-' + item.stepIdx);
+      const cb = document.getElementById('step-' + item.secIdx + '-' + item.stepIdx);
       if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
-    } else if (item.ingredientIdx !== undefined) {
-      const cb = document.getElementById('ing-' + item.ingredientIdx);
+    } else if (item.ingIdx !== undefined) {
+      const cb = document.getElementById('ing-' + item.secIdx + '-' + item.ingIdx);
       if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
     }
     qIdx++;
@@ -1315,8 +1353,8 @@ function playPrev() {
   const item = queue[qIdx];
   if (item) {
     // Uncheck the item we're about to re-read
-    const cbId = item.stepIdx !== undefined ? 'step-cb-' + item.stepIdx
-               : item.ingredientIdx !== undefined ? 'ing-' + item.ingredientIdx : null;
+    const cbId = item.stepIdx !== undefined ? 'step-' + item.secIdx + '-' + item.stepIdx
+               : item.ingIdx !== undefined ? 'ing-' + item.secIdx + '-' + item.ingIdx : null;
     if (cbId) { const cb = document.getElementById(cbId); if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); } }
   }
   showContinue(false);
@@ -1326,8 +1364,7 @@ function playPrev() {
 readAllBtn.addEventListener('click', () => {
   if (!recState.ingredients.length && !recState.steps.length && !recState.notes) return;
   // Reset all checkboxes for a fresh read
-  Array.from(stepsList.querySelectorAll('input[type=checkbox]')).forEach(cb => { if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); } });
-  Array.from(ingredientsList.querySelectorAll('input[type=checkbox]')).forEach(cb => { if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); } });
+  document.querySelectorAll('#sectionsContainer input[type=checkbox]').forEach(cb => { if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); } });
   queue = buildQueue(); qIdx = 0; qActive = true; playNext();
 });
 continueBtn.addEventListener('click',  () => { if (!qActive) return; playNext(); });
@@ -1336,7 +1373,7 @@ floatContinue.addEventListener('click',   () => { if (!qActive) return; playNext
 stopBtn.addEventListener('click', () => {
   if (synth) synth.cancel(); qActive = false; showContinue(false);
   readStatus.textContent = 'עצר.'; stepStatus.textContent = '—';
-  highlightCurrent(-1); highlightIng(-1);
+  highlightCurrent(-1, -1); highlightIng(-1, -1);
 });
 
 // ── Voice command: say "המשך" to continue reading ──────────────────────
@@ -1449,15 +1486,17 @@ if (!SpeechRecognition) {
   }
 }
 
-function speakStep(idx) {
-  if (idx < 0 || idx >= recState.steps.length) return;
-  recState.currentStep = idx; highlightCurrent(idx);
-  stepStatus.textContent = 'שלב ' + (idx+1) + ' מתוך ' + recState.steps.length;
-  speakText('שלב ' + (idx+1) + '. ' + recState.steps[idx]);
+function speakStep(secIdx, stepIdx) {
+  const sec = recState.sections[secIdx];
+  if (!sec || stepIdx < 0 || stepIdx >= sec.steps.length) return;
+  recState.currentStep = stepIdx; recState.currentSec = secIdx;
+  highlightCurrent(secIdx, stepIdx);
+  stepStatus.textContent = 'שלב ' + (stepIdx+1) + ' מתוך ' + sec.steps.length;
+  speakText('שלב ' + (stepIdx+1) + '. ' + sec.steps[stepIdx]);
 }
-startStepsBtn.addEventListener('click',  () => { if (!recState.steps.length) return; speakStep(0); });
-nextStepBtn.addEventListener('click',    () => { const n = recState.currentStep + 1; if (n >= recState.steps.length) { stepStatus.textContent = 'סיימת את כל השלבים 🎉'; return; } speakStep(n); });
-repeatStepBtn.addEventListener('click',  () => { if (recState.currentStep < 0) { speakStep(0); return; } speakStep(recState.currentStep); });
+startStepsBtn.addEventListener('click',  () => { if (!recState.sections[0]?.steps.length) return; speakStep(0, 0); });
+nextStepBtn.addEventListener('click',    () => { const si = recState.currentSec || 0; const n = (recState.currentStep || 0) + 1; const sec = recState.sections[si]; if (!sec || n >= sec.steps.length) { stepStatus.textContent = 'סיימת את כל השלבים 🎉'; return; } speakStep(si, n); });
+repeatStepBtn.addEventListener('click',  () => { const si = recState.currentSec || 0; const idx = recState.currentStep < 0 ? 0 : recState.currentStep; speakStep(si, idx); });
 
 function splitStepsOnPeriod(steps) {
   const result = [];
@@ -1478,19 +1517,24 @@ function openRecipe(id) {
   if (synth) synth.cancel(); qActive = false; showContinue(false);
   let ingredients = rec.ingredients || [];
   let steps = rec.steps || [];
-  if (rec.text && (!ingredients.length || !steps.length)) {
+  let sections = [{ ingHeader: null, ingredients, stepHeader: null, steps }];
+  if (rec.text) {
     const rp = parseRecipe(rec.text);
+    if (rp.sections.length) sections = rp.sections;
     if (rp.ingredients.length) ingredients = rp.ingredients;
     if (rp.steps.length) steps = rp.steps;
-    if (rp.ingredients.length || rp.steps.length) {
+    if ((rp.ingredients.length || rp.steps.length) && (!rec.ingredients.length || !rec.steps.length)) {
       const updated = { ...rec, ingredients, steps };
       const all = loadRecipes().map(r => r.id === id ? updated : r);
       saveRecipes(all);
       apiCall('PUT', `/api/recipe/${id}`, updated);
     }
   }
-  steps = splitStepsOnPeriod(steps);
-  recState = { title: rec.title, ingredients, steps, notes: rec.notes || '', text: rec.text || '', image: rec.image || null, currentStep: -1 };
+  // Apply period-split to each section's steps
+  sections = sections.map(sec => ({ ...sec, steps: splitStepsOnPeriod(sec.steps) }));
+  ingredients = sections.flatMap(s => s.ingredients);
+  steps = sections.flatMap(s => s.steps);
+  recState = { title: rec.title, ingredients, steps, sections, notes: rec.notes || '', text: rec.text || '', image: rec.image || null, currentStep: -1, currentSec: 0 };
   recViewTitle.textContent = rec.title;
   const srcWrap = document.getElementById('recSourceWrap');
   const srcLink = document.getElementById('recSourceLink');
@@ -1593,31 +1637,48 @@ function renderRecipeView() {
   } else {
     recRawWrap.classList.add('hidden');
   }
-  ingredientsList.innerHTML = '';
-  recState.ingredients.forEach((ing, idx) => {
-    const li = document.createElement('li');
-    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'ing-' + idx;
-    const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = ing; lbl.style.flex = '1';
-    li.appendChild(cb); li.appendChild(lbl);
-    cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
-    li.addEventListener('click', e => { if (e.target === cb || e.target === lbl) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
-    ingredientsList.appendChild(li);
-  });
-  stepsList.innerHTML = '';
-  recState.steps.forEach((step, idx) => {
-    const li   = document.createElement('li');
-    const cb   = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'step-cb-' + idx;
-    const text = document.createElement('div'); text.className = 'step-text'; text.textContent = step;
-    const acts = document.createElement('div'); acts.className = 'step-actions';
-    const rb   = document.createElement('button'); rb.className = 'small ghost'; rb.textContent = '🔊 הקראה';
-    rb.addEventListener('click', e => { e.stopPropagation(); speakStep(idx); });
-    cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
-    li.addEventListener('click', e => {
-      if (e.target === cb || e.target.closest('.step-actions')) return;
-      cb.checked = !cb.checked; cb.dispatchEvent(new Event('change'));
-    });
-    acts.appendChild(rb); text.appendChild(acts); li.appendChild(cb); li.appendChild(text);
-    stepsList.appendChild(li);
+  const container = document.getElementById('sectionsContainer');
+  container.innerHTML = '';
+  const multi = recState.sections.length > 1;
+  recState.sections.forEach((sec, secIdx) => {
+    if (sec.ingredients.length) {
+      const h2 = document.createElement('h2'); h2.className = 'sec';
+      if (secIdx > 0) h2.style.marginTop = '17px';
+      const ingTitle = multi && sec.ingHeader ? sec.ingHeader : 'מצרכים';
+      h2.innerHTML = '<span>🥕</span> ' + ingTitle;
+      container.appendChild(h2);
+      const ul = document.createElement('ul'); ul.className = 'ingredients';
+      sec.ingredients.forEach((ing, ingIdx) => {
+        const li = document.createElement('li');
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'ing-' + secIdx + '-' + ingIdx;
+        const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = ing; lbl.style.flex = '1';
+        li.appendChild(cb); li.appendChild(lbl);
+        cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+        li.addEventListener('click', e => { if (e.target === cb || e.target === lbl) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+        ul.appendChild(li);
+      });
+      container.appendChild(ul);
+    }
+    if (sec.steps.length) {
+      const h2 = document.createElement('h2'); h2.className = 'sec'; h2.style.marginTop = '17px';
+      const stepTitle = multi && sec.stepHeader ? sec.stepHeader : 'אופן ההכנה';
+      h2.innerHTML = '<span>👩‍🍳</span> ' + stepTitle;
+      container.appendChild(h2);
+      const ol = document.createElement('ol'); ol.className = 'steps';
+      sec.steps.forEach((step, stepIdx) => {
+        const li   = document.createElement('li');
+        const cb   = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'step-' + secIdx + '-' + stepIdx;
+        const txt  = document.createElement('div'); txt.className = 'step-text'; txt.textContent = step;
+        const acts = document.createElement('div'); acts.className = 'step-actions';
+        const rb   = document.createElement('button'); rb.className = 'small ghost'; rb.textContent = '🔊 הקראה';
+        rb.addEventListener('click', e => { e.stopPropagation(); speakStep(secIdx, stepIdx); });
+        cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+        li.addEventListener('click', e => { if (e.target === cb || e.target.closest('.step-actions')) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+        acts.appendChild(rb); txt.appendChild(acts); li.appendChild(cb); li.appendChild(txt);
+        ol.appendChild(li);
+      });
+      container.appendChild(ol);
+    }
   });
   readStatus.textContent = 'מוכן להקראה';
   stepStatus.textContent = '—';
