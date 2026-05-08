@@ -1180,6 +1180,8 @@ function cleanForTTS(text) {
     .replace(/\b2\/5\b/g, 'שתי חמישיות').replace(/⅖/g, 'שתי חמישיות')
     // remaining slash → "or"
     .replace(/\//g, ' או ')
+    // number ranges: 4-5 → "4 עד 5" (before dash removal)
+    .replace(/(\d+)\s*[-–—]\s*(\d+)/g, '$1 עד $2')
     // % → "אחוז", & → "ו"
     .replace(/%/g, ' אחוז ')
     .replace(/&/g, ' ו')
