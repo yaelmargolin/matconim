@@ -682,7 +682,7 @@ function parseRecipe(text) {
       if (!ingH(l) && !stepH(l)) { title = l; titleIdx = i; continue; }
     }
     if (ingH(l))  { if (ingStart === -1) ingStart = i + 1; continue; }
-    if (stepH(l)) { if (ingStart !== -1 && ingEnd === -1) ingEnd = i; stepStart = i + 1; }
+    if (stepH(l)) { if (ingStart !== -1 && ingEnd === -1) ingEnd = i; if (stepStart === -1) stepStart = i + 1; }
   }
   if (ingStart !== -1 && ingEnd === -1) ingEnd = stepStart !== -1 ? stepStart - 1 : lines.length;
   res.title = title || '';
