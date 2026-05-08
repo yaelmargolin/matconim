@@ -669,7 +669,15 @@ function parseRecipe(text) {
   const lines = text.replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
   const ingKW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|המרכיבים|רשימת\s+המרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?|for\s+the)(\s|[:\-–—(]|$)/i;
   const stepKW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|שלבי(\s+הכנה)?|הוראות\s+הביצוע|דרך\s+ה?הכנה|שיטת\s+הכנה|ביצוע|הכנת|הוראות|preparation|instructions?|method|directions?)(\s|[:\-–—(]|$)/i;
-  const ingH  = l => ingKW.test(l)  && l.length < 60;
+  const ingH  = l => {
+    if (l.length >= 50) return false;
+    if (ingKW.test(l)) return true;
+    if (!/[:–—\-]/.test(l)) return false;
+    const _s = l.replace(/[:–—\-]+\s*$/, '').trim();
+    if (!/^ל[\u05D0-\u05EA]/.test(_s)) return false;
+    if (/^ל(אחר|פני|קבלת|וודא|בסוף|לכן|צורך|קראת|שמירה|הגשה|שם\b|פי\b|כן\b)/.test(_s)) return false;
+    return /^ל[\u05D0-\u05EA]{1,30}$/.test(_s);
+  };
   const stepH = l => stepKW.test(l) && l.length < 60;
   // Find title (first non-header non-empty line)
   let title = '', titleIdx = -1;
@@ -1515,14 +1523,25 @@ function openRecipe(id) {
   if (!rec) return;
   currentRecId = id;
   if (synth) synth.cancel(); qActive = false; showContinue(false);
-  let ingredients = rec.ingredients || [];
-  let steps = rec.steps || [];
-  let sections = [{ ingHeader: null, ingredients, stepHeader: null, steps }];
+  let storedIngs  = rec.ingredients || [];
+  let storedSteps = rec.steps || [];
+  let ingredients = storedIngs;
+  let steps = storedSteps;
+  let sections = [{ ingHeader: null, ingredients: storedIngs, stepHeader: null, steps: storedSteps }];
   if (rec.text) {
     const rp = parseRecipe(rec.text);
-    if (rp.sections.length) sections = rp.sections;
-    if (rp.ingredients.length) ingredients = rp.ingredients;
-    if (rp.steps.length) steps = rp.steps;
+    if (rp.sections.length) {
+      sections = rp.sections;
+      // If parser found fewer ingredients than stored, keep stored ings in first section
+      const parsedIngs = rp.sections.flatMap(s => s.ingredients);
+      if (parsedIngs.length < storedIngs.length && storedIngs.length > 0) {
+        if (sections[0].ingredients.length === 0) {
+          sections[0] = { ...sections[0], ingredients: storedIngs };
+        }
+      }
+      if (rp.ingredients.length) ingredients = rp.ingredients;
+      if (rp.steps.length) steps = rp.steps;
+    }
     if ((rp.ingredients.length || rp.steps.length) && (!rec.ingredients.length || !rec.steps.length)) {
       const updated = { ...rec, ingredients, steps };
       const all = loadRecipes().map(r => r.id === id ? updated : r);
