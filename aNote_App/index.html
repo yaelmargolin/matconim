@@ -703,7 +703,7 @@ function parseRecipe(text) {
     const ings = [];
     for (let i = start; i < end; i++) {
       const r = lines[i]; if (!r) continue;
-      if (ingH(r) || stepH(r)) break;
+      if (ingKW.test(r) || stepH(r)) break;
       const c = r.replace(/^[-\u2022*\u2013\u00B7\u2010]+\s*/, '').replace(/^\d+[.\)]+\s*/, '').trim();
       if (c) ings.push(c);
     }
@@ -718,7 +718,7 @@ function parseRecipe(text) {
     const flush = () => { const t = buf.trim().replace(/\.\s*$/, ''); if (t.length > 2) steps.push(t); buf = ''; };
     for (let i = start; i < end; i++) {
       const r = lines[i]; if (!r) { flush(); continue; }
-      if (ingH(r) || stepH(r)) break;
+      if (ingKW.test(r) || stepH(r)) break;
       if (/^\d+[.\)]\s+/.test(r))     { flush(); buf = r.replace(/^\d+[.\)]\s+/, '').replace(/\.\s*$/, ''); flush(); }
       else if (/^[-\u2022*\u2013\u00B7\u2010]\s+/.test(r)) { flush(); buf = r.replace(/^[-\u2022*\u2013\u00B7\u2010]\s+/, '').replace(/\.\s*$/, ''); flush(); }
       else { buf += (buf ? ' ' : '') + r; if (/\.\s*$/.test(r)) flush(); }
