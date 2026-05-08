@@ -1135,7 +1135,15 @@ document.getElementById('upSaveBtn').addEventListener('click', () => {
   if (cat === 'auto') cat = autoCategory(finalTitle, textVal);
   let recs = loadRecipes();
   if (editingRecipeId) {
-    const updated = { ...recs.find(r => r.id === editingRecipeId), title: finalTitle, category: cat, text: textVal, ingredients: parsed.ingredients, steps: parsed.steps, notes: parsed.notes || '', url: urlVal, image: currentImage || recs.find(r => r.id === editingRecipeId)?.image || undefined };
+    const oldRec = recs.find(r => r.id === editingRecipeId);
+    const updated = {
+      ...oldRec,
+      title: finalTitle, category: cat, text: textVal,
+      ingredients: parsed.ingredients.length ? parsed.ingredients : (oldRec.ingredients || []),
+      steps:       parsed.steps.length       ? parsed.steps       : (oldRec.steps       || []),
+      notes: parsed.notes || '', url: urlVal,
+      image: currentImage || oldRec?.image || undefined
+    };
     recs = recs.map(r => r.id === editingRecipeId ? updated : r);
     saveRecipes(recs);
     apiCall('PUT', `/api/recipe/${editingRecipeId}`, updated);
