@@ -753,16 +753,11 @@ function parseRecipe(text) {
         }
       } else {
         // step header without preceding ing
-        const stepHeaderLineIdx = headers[j].i;
         const stepHeader = hdrLabel(headers[j].line);
         const stepStart  = headers[j].i + 1;
         j++;
         const stepEnd = j < headers.length ? headers[j].i : lines.length;
-        // If this is the very first section, look for ingredient lines before the step header
-        const preIngs = (res.sections.length === 0)
-          ? extractIngs(titleIdx !== -1 ? titleIdx + 1 : 0, stepHeaderLineIdx)
-          : [];
-        res.sections.push({ ingHeader: null, ingredients: preIngs, stepHeader, steps: extractSteps(stepStart, stepEnd) });
+        res.sections.push({ ingHeader: null, ingredients: [], stepHeader, steps: extractSteps(stepStart, stepEnd) });
       }
     }
     res.ingredients = res.sections.flatMap(s => s.ingredients);
