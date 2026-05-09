@@ -753,11 +753,27 @@ function parseRecipe(text) {
         }
       } else {
         // step header without preceding ing
+        const stepHeaderLineIdx = headers[j].i;
         const stepHeader = hdrLabel(headers[j].line);
         const stepStart  = headers[j].i + 1;
         j++;
         const stepEnd = j < headers.length ? headers[j].i : lines.length;
-        res.sections.push({ ingHeader: null, ingredients: [], stepHeader, steps: extractSteps(stepStart, stepEnd) });
+        // If this is the very first section, extract ingredient lines sitting before this step header.
+        // Filter: short lines that don't end with sentence punctuation (excludes notes/descriptions).
+        let preIngs = [];
+        if (res.sections.length === 0) {
+          const preStart = titleIdx !== -1 ? titleIdx + 1 : 0;
+          for (let k = preStart; k < stepHeaderLineIdx; k++) {
+            const l = lines[k];
+            if (!l) continue;
+            if (ingKW.test(l) || stepH(l)) break;
+            if (l.length <= 80 && !/[.!?]״׳]\s*$/.test(l)) {
+              const c = l.replace(/^[-•*–·‐]+\s*/, '').replace(/^\d+[.\)]+\s*/, '').trim();
+              if (c) preIngs.push(c);
+            }
+          }
+        }
+        res.sections.push({ ingHeader: null, ingredients: preIngs, stepHeader, steps: extractSteps(stepStart, stepEnd) });
       }
     }
     res.ingredients = res.sections.flatMap(s => s.ingredients);
@@ -1542,7 +1558,8 @@ function openRecipe(id) {
       sections = rp.sections;
       // If parser found fewer ingredients than stored, keep stored ings in first section
       const parsedIngs = rp.sections.flatMap(s => s.ingredients);
-      if (parsedIngs.length === 0 && storedIngs.length > 0) {
+      // Prefer stored ingredients when they are more complete than what the parser found
+      if (storedIngs.length > parsedIngs.length) {
         sections[0] = { ...sections[0], ingredients: storedIngs };
       }
       if (rp.ingredients.length) ingredients = rp.ingredients;
