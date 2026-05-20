@@ -733,6 +733,25 @@ function parseRecipe(text) {
   };
 
   if (headers.length > 0) {
+    // Preamble: lines between title and first header that look like ingredients.
+    // If the detected "title" line itself contains a digit it's an ingredient — include it.
+    const titleHasDigit = titleIdx >= 0 && /\d/.test(lines[titleIdx]);
+    if (titleHasDigit) res.title = '';
+    const preambleStart = titleHasDigit ? titleIdx : (titleIdx >= 0 ? titleIdx + 1 : 0);
+    const preambleIngs = [];
+    for (let k = preambleStart; k < headers[0].i; k++) {
+      const l = lines[k]; if (!l) continue;
+      if (ingKW.test(l) || stepH(l)) break;
+      if (l.length <= 80 && !/[.!?]\s*$/.test(l)) {
+        const c = l.replace(/^[-\u2022*\u2013\u00B7\u2010]+\s*/, '').replace(/^\d+[.\)]+\s*/, '').trim();
+        if (c) preambleIngs.push(c);
+      }
+    }
+    // If the first header is an ing-header, prepend preamble as a leading unlabelled section
+    if (preambleIngs.length > 0 && headers[0].type === 'ing') {
+      res.sections.push({ ingHeader: null, ingredients: preambleIngs, stepHeader: null, steps: [] });
+    }
+
     // Group headers into sections: ing -> step -> ing -> step ...
     let j = 0;
     while (j < headers.length) {
@@ -752,28 +771,13 @@ function parseRecipe(text) {
           res.sections.push({ ingHeader, ingredients: extractIngs(ingStart, ingEnd), stepHeader: null, steps: [] });
         }
       } else {
-        // step header without preceding ing
-        const stepHeaderLineIdx = headers[j].i;
+        // step header without preceding ing — use preamble as ingredients for first section
         const stepHeader = hdrLabel(headers[j].line);
         const stepStart  = headers[j].i + 1;
         j++;
         const stepEnd = j < headers.length ? headers[j].i : lines.length;
-        // If this is the very first section, extract ingredient lines sitting before this step header.
-        // Filter: short lines that don't end with sentence punctuation (excludes notes/descriptions).
-        let preIngs = [];
-        if (res.sections.length === 0) {
-          const preStart = titleIdx !== -1 ? titleIdx + 1 : 0;
-          for (let k = preStart; k < stepHeaderLineIdx; k++) {
-            const l = lines[k];
-            if (!l) continue;
-            if (ingKW.test(l) || stepH(l)) break;
-            if (l.length <= 80 && !/[.!?]״׳]\s*$/.test(l)) {
-              const c = l.replace(/^[-•*–·‐]+\s*/, '').replace(/^\d+[.\)]+\s*/, '').trim();
-              if (c) preIngs.push(c);
-            }
-          }
-        }
-        res.sections.push({ ingHeader: null, ingredients: preIngs, stepHeader, steps: extractSteps(stepStart, stepEnd) });
+        const secIngs = res.sections.length === 0 ? preambleIngs : [];
+        res.sections.push({ ingHeader: null, ingredients: secIngs, stepHeader, steps: extractSteps(stepStart, stepEnd) });
       }
     }
     res.ingredients = res.sections.flatMap(s => s.ingredients);
