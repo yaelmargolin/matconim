@@ -742,6 +742,7 @@ function parseRecipe(text) {
     for (let k = preambleStart; k < headers[0].i; k++) {
       const l = lines[k]; if (!l) continue;
       if (ingKW.test(l) || stepH(l)) break;
+      if (/^\d+[.)]\s/.test(l)) continue;
       if (l.length <= 80 && !/[.!?]\s*$/.test(l)) {
         const c = l.replace(/^[-\u2022*\u2013\u00B7\u2010]+\s*/, '').replace(/^\d+[.\)]+\s*/, '').trim();
         if (c) preambleIngs.push(c);
@@ -1560,10 +1561,9 @@ function openRecipe(id) {
     const rp = parseRecipe(rec.text);
     if (rp.sections.length) {
       sections = rp.sections;
-      // If parser found fewer ingredients than stored, keep stored ings in first section
+      // Only fall back to stored ingredients if parser found none at all
       const parsedIngs = rp.sections.flatMap(s => s.ingredients);
-      // Prefer stored ingredients when they are more complete than what the parser found
-      if (storedIngs.length > parsedIngs.length) {
+      if (parsedIngs.length === 0 && storedIngs.length > 0) {
         sections[0] = { ...sections[0], ingredients: storedIngs };
       }
       if (rp.ingredients.length) ingredients = rp.ingredients;
