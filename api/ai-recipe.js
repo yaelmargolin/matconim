@@ -69,7 +69,8 @@ module.exports = async function handler(req, res) {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'missing url' });
 
-  if (!process.env.GEMINI_API_KEY) {
+  const apiKey = process.env.MATKONIM_AI || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return res.status(503).json({ error: 'מפתח Gemini API חסר בהגדרות השרת' });
   }
 
@@ -89,7 +90,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `אתה עוזר שמחלץ מתכוני בישול. קרא את התוכן ומצא את המתכון.
