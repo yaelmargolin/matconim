@@ -1,6 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { setCORS } = require('./_db');
-const { getAuthUserId } = require('./_auth');
 
 function getYouTubeVideoId(url) {
   try {
@@ -62,9 +61,6 @@ module.exports = async function handler(req, res) {
   setCORS(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
-
-  const userId = getAuthUserId(req);
-  if (!userId) return res.status(401).json({ error: 'לא מחוברת. כנסי לחשבון תחילה.' });
 
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'missing url' });
