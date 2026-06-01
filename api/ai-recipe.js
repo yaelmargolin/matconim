@@ -1,4 +1,4 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { setCORS } = require('./_db');
 const { getAuthUserId } = require('./_auth');
 
@@ -69,8 +69,8 @@ module.exports = async function handler(req, res) {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'missing url' });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: 'מפתח Anthropic API חסר בהגדרות השרת' });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({ error: 'מפתח Gemini API חסר בהגדרות השרת' });
   }
 
   try {
@@ -89,12 +89,10 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      system: `אתה עוזר שמחלץ מתכוני בישול. קרא את התוכן ומצא את המתכון.
+    const prompt = `אתה עוזר שמחלץ מתכוני בישול. קרא את התוכן ומצא את המתכון.
 החזר JSON תקין בלבד, ללא markdown, ללא הסבר נוסף:
 {
   "title": "שם המרשם בעברית",
@@ -102,13 +100,17 @@ module.exports = async function handler(req, res) {
   "steps": ["שלב מפורט", "..."],
   "notes": "טיפים והערות (או מחרוזת ריקה)"
 }
-תרגם לעברית אם הטקסט באנגלית. כלול כמויות מדויקות במצרכים. כתוב שלבים ברורים.`,
-      messages: [{ role: 'user', content: `חלץ מתכון מהתוכן הבא:\n\n${content}` }]
-    });
+תרגם לעברית אם הטקסט באנגלית. כלול כמויות מדויקות במצרכים. כתוב שלבים ברורים.
+
+חלץ מתכון מהתוכן הבא:
+
+${content}`;
+
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text().trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
 
     let recipe;
     try {
-      const raw = response.content[0].text.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
       recipe = JSON.parse(raw);
     } catch {
       return res.status(500).json({ error: 'שגיאה בפענוח תשובת AI. נסי שוב.' });
