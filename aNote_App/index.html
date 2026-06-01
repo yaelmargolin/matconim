@@ -444,8 +444,10 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
           <div style="display:flex;gap:7px;align-items:center;">
             <input type="text" id="upUrl" placeholder="https://..." dir="ltr" style="flex:1;" />
             <button class="small ghost" id="upUrlOpenBtn" type="button">פתיחה ↗</button>
+            <button class="small" id="aiAnalyzeBtn" type="button" title="ניתוח מתכון עם AI מהכתובת">🤖 ניתוח AI</button>
           </div>
-          <p class="hint">ניתן להדביק כתובת אתר של המרשם המקורי</p>
+          <div id="aiStatus" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;background:#f0f7ff;border:1px solid var(--border);font-size:.84em;text-align:center;"></div>
+          <p class="hint">הדביקי כתובת אתר מתכון או YouTube — לחצי 🤖 ניתוח AI למילוי אוטומטי</p>
         </div>
         <div class="form-group">
           <label>📸 תמונה (אופציונלי)</label>
@@ -1051,12 +1053,13 @@ function resetUploadForm() {
   document.getElementById('upSaveBtn').textContent = '💾 שמירת המרשם';
   upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto';
   clearRecipeImage();
+  setAiStatus('');
 }
 document.getElementById('upBackBtn').addEventListener('click', () => {
   const dest = editingRecipeId ? 'recipe' : (prevView === 'category' ? 'category' : 'home');
   resetUploadForm(); showView(dest);
 });
-document.getElementById('upClearBtn').addEventListener('click', () => { upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto'; clearRecipeImage(); });
+document.getElementById('upClearBtn').addEventListener('click', () => { upTitle.value = ''; upText.value = ''; upUrl.value = ''; upCategory.value = 'auto'; clearRecipeImage(); setAiStatus(''); });
 
 const fileInput  = document.getElementById('fileInput');
 document.getElementById('loadFileBtn').addEventListener('click', () => fileInput.click());
@@ -1077,6 +1080,46 @@ document.getElementById('upUrlOpenBtn').addEventListener('click', () => {
   const url = upUrl.value.trim();
   if (url) window.open(url, '_blank', 'noopener');
   else alert('הדביקי קישור תחילה');
+});
+
+const aiStatusEl = document.getElementById('aiStatus');
+function setAiStatus(msg, color) {
+  aiStatusEl.style.display = msg ? 'block' : 'none';
+  aiStatusEl.textContent = msg;
+  aiStatusEl.style.color = color || 'var(--muted)';
+}
+
+document.getElementById('aiAnalyzeBtn').addEventListener('click', async () => {
+  const url = upUrl.value.trim();
+  if (!url) { alert('הדביקי קישור תחילה'); return; }
+
+  const btn = document.getElementById('aiAnalyzeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ מנתח...';
+  setAiStatus('שולחת לניתוח AI... זה לוקח כמה שניות.', 'var(--muted)');
+
+  try {
+    const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) };
+    if (window.__clerkToken) opts.headers['Authorization'] = 'Bearer ' + window.__clerkToken;
+    const r = await fetch('/api/ai-recipe', opts);
+    const data = await r.json();
+
+    if (!r.ok || data.error) {
+      setAiStatus('❌ ' + (data.error || 'שגיאה בניתוח'), 'var(--danger, red)');
+      return;
+    }
+
+    if (data.title && !upTitle.value.trim()) upTitle.value = data.title;
+    if (data.text) upText.value = data.text;
+
+    setAiStatus('✅ המתכון נוסף! בדקי ותקני לפי הצורך, ואז לחצי שמירה.', 'green');
+    setTimeout(() => document.getElementById('upSaveBtn').scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+  } catch (e) {
+    setAiStatus('❌ שגיאת רשת: ' + e.message, 'var(--danger, red)');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 ניתוח AI';
+  }
 });
 
 // OCR
