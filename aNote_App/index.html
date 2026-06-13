@@ -236,6 +236,8 @@ ul.ingredients li input[type=checkbox] {
 }
 ul.ingredients li.done { color: var(--muted); text-decoration: line-through; }
 ul.ingredients li.reading { background: #fff1e6; border-radius: 10px; outline: 2px solid var(--primary); }
+ul.ingredients li.ing-subhdr { font-weight: 700; color: var(--primary); border-bottom: 0; padding: 10px 0 2px; cursor: default; pointer-events: none; font-size: 0.9em; }
+ol.steps li.step-subhdr { font-weight: 700; color: var(--primary); list-style: none; margin-right: -18px; padding: 10px 0 2px; }
 #continueBtn { background: var(--done); color: #fff; }
 #continueBtn:not(:disabled) { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(167,199,150,.7);}50%{box-shadow:0 0 0 10px rgba(167,199,150,0);} }
@@ -665,22 +667,27 @@ function autoCategory(title, text) {
   return 'other';
 }
 
+const ING_KW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|המרכיבים|רשימת\s+המרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?|for\s+the)(\s|[:\-–—(]|$)/i;
+const STEP_KW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|שלבי(\s+הכנה)?|הוראות\s+הביצוע|דרך\s+ה?הכנה|שיטת\s+הכנה|ביצוע|הכנת|הוראות|preparation|instructions?|method|directions?)(\s|[:\-–—(]|$)/i;
+function isIngSubHdr(l) {
+  if (!l || l.length >= 50) return false;
+  if (ING_KW.test(l)) return true;
+  if (!/[:–—\-]/.test(l)) return false;
+  const s = l.replace(/[:–—\-]+\s*$/, '').trim();
+  if (!/^ל[\u05D0-\u05EA]/.test(s)) return false;
+  if (/^ל(אחר|פני|קבלת|וודא|בסוף|לכן|צורך|קראת|שמירה|הגשה|שם\b|פי\b|כן\b)/.test(s)) return false;
+  return /^ל[\u05D0-\u05EA]{1,30}$/.test(s);
+}
+function isStepSubHdr(l) { return !!l && STEP_KW.test(l) && l.length < 60; }
+
 function parseRecipe(text) {
   const res = { title: '', ingredients: [], steps: [], notes: '', sections: [] };
   if (!text || !text.trim()) return res;
   const lines = text.replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
-  const ingKW  = /^(מצרכים|רכיבים|חומרים|מרכיבים|המרכיבים|רשימת\s+המרכיבים|חומרי\s+גלם|מה\s+צריך|נדרש|לבצק|למלית|לרוטב|לציפוי|לקישוט|לגנאש|לקרם|לסירופ|ingredients?|for\s+the)(\s|[:\-–—(]|$)/i;
-  const stepKW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|שלבי(\s+הכנה)?|הוראות\s+הביצוע|דרך\s+ה?הכנה|שיטת\s+הכנה|ביצוע|הכנת|הוראות|preparation|instructions?|method|directions?)(\s|[:\-–—(]|$)/i;
-  const ingH  = l => {
-    if (l.length >= 50) return false;
-    if (ingKW.test(l)) return true;
-    if (!/[:–—\-]/.test(l)) return false;
-    const _s = l.replace(/[:–—\-]+\s*$/, '').trim();
-    if (!/^ל[\u05D0-\u05EA]/.test(_s)) return false;
-    if (/^ל(אחר|פני|קבלת|וודא|בסוף|לכן|צורך|קראת|שמירה|הגשה|שם\b|פי\b|כן\b)/.test(_s)) return false;
-    return /^ל[\u05D0-\u05EA]{1,30}$/.test(_s);
-  };
-  const stepH = l => stepKW.test(l) && l.length < 60;
+  const ingKW  = ING_KW;
+  const stepKW = STEP_KW;
+  const ingH   = isIngSubHdr;
+  const stepH  = isStepSubHdr;
   // Find title (first non-header non-empty line)
   let title = '', titleIdx = -1;
   for (let i = 0; i < lines.length; i++) {
@@ -1739,11 +1746,16 @@ function renderRecipeView() {
       const ul = document.createElement('ul'); ul.className = 'ingredients';
       sec.ingredients.forEach((ing, ingIdx) => {
         const li = document.createElement('li');
-        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'ing-' + secIdx + '-' + ingIdx;
-        const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = ing; lbl.style.flex = '1';
-        li.appendChild(cb); li.appendChild(lbl);
-        cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
-        li.addEventListener('click', e => { if (e.target === cb || e.target === lbl) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+        if (isIngSubHdr(ing)) {
+          li.className = 'ing-subhdr';
+          li.textContent = ing.replace(/[:–—\-]+\s*$/, '').trim();
+        } else {
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'ing-' + secIdx + '-' + ingIdx;
+          const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = ing; lbl.style.flex = '1';
+          li.appendChild(cb); li.appendChild(lbl);
+          cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+          li.addEventListener('click', e => { if (e.target === cb || e.target === lbl) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+        }
         ul.appendChild(li);
       });
       container.appendChild(ul);
@@ -1756,14 +1768,19 @@ function renderRecipeView() {
       const ol = document.createElement('ol'); ol.className = 'steps';
       sec.steps.forEach((step, stepIdx) => {
         const li   = document.createElement('li');
-        const cb   = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'step-' + secIdx + '-' + stepIdx;
-        const txt  = document.createElement('div'); txt.className = 'step-text'; txt.textContent = step;
-        const acts = document.createElement('div'); acts.className = 'step-actions';
-        const rb   = document.createElement('button'); rb.className = 'small ghost'; rb.textContent = '🔊 הקראה';
-        rb.addEventListener('click', e => { e.stopPropagation(); speakStep(secIdx, stepIdx); });
-        cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
-        li.addEventListener('click', e => { if (e.target === cb || e.target.closest('.step-actions')) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
-        acts.appendChild(rb); txt.appendChild(acts); li.appendChild(cb); li.appendChild(txt);
+        if (isStepSubHdr(step)) {
+          li.className = 'step-subhdr';
+          li.textContent = step.replace(/[:–—\-]+\s*$/, '').trim();
+        } else {
+          const cb   = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'step-' + secIdx + '-' + stepIdx;
+          const txt  = document.createElement('div'); txt.className = 'step-text'; txt.textContent = step;
+          const acts = document.createElement('div'); acts.className = 'step-actions';
+          const rb   = document.createElement('button'); rb.className = 'small ghost'; rb.textContent = '🔊 הקראה';
+          rb.addEventListener('click', e => { e.stopPropagation(); speakStep(secIdx, stepIdx); });
+          cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+          li.addEventListener('click', e => { if (e.target === cb || e.target.closest('.step-actions')) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+          acts.appendChild(rb); txt.appendChild(acts); li.appendChild(cb); li.appendChild(txt);
+        }
         ol.appendChild(li);
       });
       container.appendChild(ol);
