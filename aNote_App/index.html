@@ -672,10 +672,19 @@ const STEP_KW = /^(הוראות(\s+הכנה)?|אופן\s+ה?הכנה|הכנה|ש
 function isIngSubHdr(l) {
   if (!l || l.length >= 50) return false;
   if (ING_KW.test(l)) return true;
+  const stripped = l.replace(/[:–—\-]+\s*$/, '').trim();
+  // Exclude known food items starting with ל
+  if (/^ל(בנה|חם|ביבות?|וביא|וז\b|פת\b|ימון|ייסה|חמנ|ב(י|ו)שר|עוגה|תוחים?|שד\b|חי\b)/.test(stripped)) return false;
+  // ל-prefix section labels: short, no digits, ≤4 words, ≤30 chars
+  if (/^ל[\u05D0-\u05EA]/.test(stripped) && !/\d/.test(stripped) && stripped.split(/\s+/).length <= 4 && stripped.length <= 30) {
+    if (!/^ל(אחר|פני|קבלת|וודא|בסוף|לכן|צורך|קראת|שמירה|שם\b|פי\b|כן\b|הכין|הוסי|לוש|ערב|חמם|בשל|טגן|צנן|אפ[הי]|הוצ)/.test(stripped)) {
+      return true;
+    }
+  }
   if (!/[:–—\-]/.test(l)) return false;
   const s = l.replace(/[:–—\-]+\s*$/, '').trim();
   if (!/^ל[\u05D0-\u05EA]/.test(s)) return false;
-  if (/^ל(אחר|פני|קבלת|וודא|בסוף|לכן|צורך|קראת|שמירה|הגשה|שם\b|פי\b|כן\b)/.test(s)) return false;
+  if (/^ל(אחר|פני|קבלת|וודא|בסוף|לכן|צורך|קראת|שמירה|שם\b|פי\b|כן\b)/.test(s)) return false;
   return /^ל[\u05D0-\u05EA]{1,30}$/.test(s);
 }
 function isStepSubHdr(l) { return !!l && STEP_KW.test(l) && l.length < 60; }
