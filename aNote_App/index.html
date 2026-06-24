@@ -796,7 +796,8 @@ function parseRecipe(text) {
     // Preamble: lines between title and first header that look like ingredients.
     // If the detected "title" line itself contains a digit it's an ingredient — include it.
     const _tl = titleIdx >= 0 ? lines[titleIdx].replace(/^[\-•*\u2022\u25a2\u25a1\u2713\u2714\s]+/, '') : '';
-    const titleHasDigit = titleIdx >= 0 && (/\d/.test(lines[titleIdx]) || /^[\u00BD\u00BC\u00BE\u2153\u2154\u215B-\u215E]/.test(_tl) || ingH(_tl));
+    const _UNIT = /^(כוס(ות?)?|כפ(ות?|י(ות?)?)|גרם|מ"ל|ק"ג|חצי\s|רבע\s|שליש\s|קורט|חופן|מחית|אבקת|חבילת?|מיכל|ענף\s|שן\s|ראש\s|\u00BD|\u00BC|\u00BE|\u2153|\u2154)/;
+    const titleHasDigit = titleIdx >= 0 && (/\d/.test(lines[titleIdx]) || /^[\u00BD\u00BC\u00BE\u2153\u2154\u215B-\u215E]/.test(_tl) || ingH(_tl) || _UNIT.test(_tl));
     if (titleHasDigit) res.title = '';
     const preambleStart = titleHasDigit ? titleIdx : (titleIdx >= 0 ? titleIdx + 1 : 0);
     const preambleIngs = [];
