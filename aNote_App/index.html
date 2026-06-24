@@ -266,6 +266,8 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
 .empty-state { text-align: center; padding: 38px 18px; color: var(--muted); font-size: .99em; line-height: 1.9; }
 .empty-icon { font-size: 2.4em; margin-bottom: 9px; }
 .section-title { font-size: .96em; font-weight: 700; color: var(--primary-dark); margin: 2px 0 10px; padding: 0 2px; }
+.empty-state { text-align: center; padding: 40px 16px; color: var(--muted); font-size: .95em; }
+.empty-state .empty-icon { font-size: 2.5em; margin-bottom: 10px; }
 .fab { width: 100%; border-radius: 14px; padding: 12px; margin-top: 2px; }
 .hint { font-size: .8em; color: var(--muted); margin-top: 4px; }
 .font-controls { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 11px; }
@@ -393,6 +395,46 @@ ol.steps li input[type=checkbox] { width: 20px; height: 20px; accent-color: var(
       <p class="section-title">קטגוריות</p>
       <div class="cat-grid" id="catGrid"></div>
       <button class="fab" id="goUploadBtn">＋ הוספת מרשם חדש</button>
+      <button class="fab ghost" id="goNotesBtn" style="margin-top:10px;">📝 הפתקים שלי</button>
+    </main>
+  </div>
+
+  <!-- FREE NOTES LIST -->
+  <div id="view-notes" class="view">
+    <header>
+      <button class="back-btn" onclick="showView('home')">← חזרה</button>
+      <h1>📝 הפתקים שלי</h1>
+      <button class="back-btn" id="noteNewBtn" style="margin-right:auto;">＋ חדש</button>
+    </header>
+    <main>
+      <div id="notesList"></div>
+      <div id="notesEmpty" class="empty-state hidden">
+        <div class="empty-icon">📋</div>
+        אין עדיין פתקים<br>
+        <button class="ghost" style="margin-top:12px;" id="notesEmptyNewBtn">צרי פתק ראשון</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- FREE NOTE EDITOR -->
+  <div id="view-note-edit" class="view">
+    <header>
+      <button class="back-btn" id="noteBackBtn">← חזרה</button>
+      <h1 id="noteEditTitle">פתק חדש</h1>
+      <button class="back-btn danger" id="noteDeleteBtn" style="margin-right:auto;display:none;">🗑 מחק</button>
+    </header>
+    <main>
+      <div class="card">
+        <div class="form-group">
+          <label for="noteTitleInput">כותרת (אופציונלי)</label>
+          <input type="text" id="noteTitleInput" placeholder="כותרת הפתק..." />
+        </div>
+        <div class="form-group">
+          <label for="noteContentInput">תוכן</label>
+          <textarea id="noteContentInput" placeholder="כתבי כאן..." style="min-height:300px;"></textarea>
+        </div>
+        <button id="noteSaveBtn" style="width:100%;margin-top:4px;">💾 שמירה</button>
+      </div>
     </main>
   </div>
 
@@ -1860,6 +1902,116 @@ renderHome();
 })();
 
 })(); // end recipes IIFE
+
+// ── Free Notes ──────────────────────────────────────────────────────────────
+(function() {
+  let currentNoteId = null;
+  let freeNotes = [];
+
+  async function notesApiCall(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (window.__clerkToken) opts.headers['Authorization'] = 'Bearer ' + window.__clerkToken;
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(path, opts);
+    if (!res.ok) return null;
+    return res.json().catch(() => null);
+  }
+
+  async function loadNotes() {
+    const data = await notesApiCall('GET', '/api/free-notes');
+    if (Array.isArray(data)) freeNotes = data;
+    renderNotesList();
+  }
+
+  function renderNotesList() {
+    const list = document.getElementById('notesList');
+    const empty = document.getElementById('notesEmpty');
+    list.innerHTML = '';
+    if (!freeNotes.length) {
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    freeNotes.forEach(note => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.style.cssText = 'margin-bottom:10px;cursor:pointer;padding:14px 16px;';
+      const title = note.title || '(ללא כותרת)';
+      const preview = note.content ? note.content.slice(0, 80).replace(/\n/g, ' ') + (note.content.length > 80 ? '…' : '') : '';
+      div.innerHTML = `
+        <div style="font-weight:700;font-size:1em;margin-bottom:${preview ? 4 : 0}px;">${escHtml(title)}</div>
+        ${preview ? `<div style="font-size:.85em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(preview)}</div>` : ''}
+      `;
+      div.addEventListener('click', () => openNoteEditor(note));
+      list.appendChild(div);
+    });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function openNoteEditor(note) {
+    currentNoteId = note ? note.id : null;
+    document.getElementById('noteEditTitle').textContent = note ? 'עריכת פתק' : 'פתק חדש';
+    document.getElementById('noteTitleInput').value  = note ? note.title   : '';
+    document.getElementById('noteContentInput').value = note ? note.content : '';
+    document.getElementById('noteDeleteBtn').style.display = note ? '' : 'none';
+    showView('note-edit');
+  }
+
+  async function saveNote() {
+    const title   = document.getElementById('noteTitleInput').value.trim();
+    const content = document.getElementById('noteContentInput').value;
+    if (!content.trim() && !title) { showToast('יש לכתוב משהו לפני השמירה'); return; }
+    const btn = document.getElementById('noteSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'שומר...';
+    try {
+      if (currentNoteId) {
+        await notesApiCall('PUT', `/api/free-note/${currentNoteId}`, { title, content });
+        const idx = freeNotes.findIndex(n => n.id === currentNoteId);
+        if (idx >= 0) freeNotes[idx] = { ...freeNotes[idx], title, content };
+      } else {
+        const id = Date.now();
+        const saved = await notesApiCall('POST', '/api/free-notes', { id, title, content });
+        if (saved) { currentNoteId = saved.id; freeNotes.unshift(saved); }
+      }
+      showToast('✅ הפתק נשמר');
+      document.getElementById('noteEditTitle').textContent = 'עריכת פתק';
+      document.getElementById('noteDeleteBtn').style.display = '';
+    } catch(e) {
+      showToast('שגיאה בשמירה');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💾 שמירה';
+    }
+  }
+
+  async function deleteNote() {
+    if (!currentNoteId) return;
+    if (!confirm('למחוק את הפתק לצמיתות?')) return;
+    await notesApiCall('DELETE', `/api/free-note/${currentNoteId}`);
+    freeNotes = freeNotes.filter(n => n.id !== currentNoteId);
+    showToast('הפתק נמחק');
+    showView('notes');
+    renderNotesList();
+  }
+
+  // Wire up buttons
+  document.getElementById('goNotesBtn').addEventListener('click', () => {
+    loadNotes();
+    showView('notes');
+  });
+  document.getElementById('noteNewBtn').addEventListener('click', () => openNoteEditor(null));
+  document.getElementById('notesEmptyNewBtn').addEventListener('click', () => openNoteEditor(null));
+  document.getElementById('noteSaveBtn').addEventListener('click', saveNote);
+  document.getElementById('noteDeleteBtn').addEventListener('click', deleteNote);
+  document.getElementById('noteBackBtn').addEventListener('click', () => {
+    showView('notes');
+    renderNotesList();
+  });
+})();
 
 </script>
 
